@@ -1,0 +1,55 @@
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log
+
+# AI Agent / Assistant folders
+.claude/
+CLAUDE.md
+AGENTS.md
+
+# Common AI tooling
+.cursor/
+.cursorrules
+.github/copilot/
+.vscode/copilot*
+
+# OpenAI / ChatGPT / Agents
+.openai/
+.ai/
+agents/
+agent/
+ai-agent/
+ai-agents/
+
+# Continue.dev
+.continue/
+
+# Aider
+.aider*
+.aider/
+
+# Sourcegraph Cody
+.cody/
+
+# Windsurf / Codeium
+.codeium/
+.windsurf/
+
+# Local AI cache / temp
+*.prompt
+*.prompts
+*.context
+*.memory
+*.agent
+*.agents
+
+.ai-cache/
+.cache/ai/
