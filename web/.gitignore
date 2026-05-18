@@ -1,0 +1,67 @@
+Created by https://www.toptal.com/developers/gitignore/api/nextjs
+# Edit at https://www.toptal.com/developers/gitignore?templates=nextjs
+### NextJS ###
+# dependencies
+/node_modules
+/.pnp
+.pnp.js
+# testing
+/coverage
+# next.js
+/.next/
+/out/
+# production
+/build
+# misc
+.DS_Store
+*.pem
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+# local env files
+.env*.local
+# vercel
+.vercel
+# typescript
+*.tsbuildinfo
+next-env.d.ts
+# End of https://www.toptal.com/developers/gitignore/api/nextjs
+# AI Agent / Assistant folders
+.claude/
+CLAUDE.md
+AGENTS.md
+# Common AI tooling
+.cursor/
+.cursorrules
+.github/copilot/
+.vscode/copilot*
+# OpenAI / ChatGPT / Agents
+.openai/
+.ai/
+agents/
+agent/
+ai-agent/
+ai-agents/
+# Continue.dev
+.continue/
+# Aider
+.aider*
+.aider/
+# Sourcegraph Cody
+.cody/
+# Windsurf / Codeium
+.codeium/
+.windsurf/
+# Local AI cache / temp
+*.prompt
+*.prompts
+*.context
+*.memory
+*.agent
+*.agents
+.ai-cache/
+.cache/ai/
+
+
