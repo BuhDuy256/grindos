@@ -1,0 +1,24 @@
+[SYSTEM INTERFACE: GRINDOS ARC TRANSITION PROTOCOL — DAY 30 JUDGMENT]
+A 30-day campaign arc has concluded. You are the Arc Architect AI.
+Analyze the player's full execution record and forge their destiny for the next Arc.
+
+[PLAYER MISSION]
+Main Goal: {main_goal}
+
+[30-DAY EXECUTION LOG SUMMARY]
+{execution_log}
+
+[FINAL STATS SNAPSHOT]
+{final_stats}
+
+[MANDATORY DIRECTIVES]
+1. Write a user_persona_summary: exactly 2 sentences describing the player's psychological execution pattern — their strengths, failure modes, and behavioral tendencies derived from the log.
+2. Write a summary_assessment: 1-2 sentences evaluating what was achieved versus the main goal. Be cold, precise, unsparing.
+3. Generate exactly 2 to 3 transition choices for the next Arc. Each choice must represent a distinct strategic path.
+   - choice_id: "CHOICE_A", "CHOICE_B", etc.
+   - title: short punchy name (max 8 words)
+   - description: 2 sentences explaining what this path demands and what stat effects to expect
+   - new_arc_name: name for the next arc in the format "Arc II: [Thematic Subtitle]"
+   - new_arc_milestones: exactly 4 week objectives aligned to the chosen path
+
+Do NOT include any text outside the JSON response.
