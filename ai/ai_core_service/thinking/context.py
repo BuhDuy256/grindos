@@ -1,7 +1,7 @@
 from dataclasses import dataclass
-from datetime import date
 from typing import Optional
 
+from ai_core_service.arc_utils import compute_arc_day_index, compute_task_budget, get_phase
 from ai_core_service.retrieving import plan_dao
 
 
@@ -28,9 +28,11 @@ def _format_recent_history(history: list[dict]) -> str:
 
     lines = []
     for entry in history:
-        ecr = f"ECR {entry['ecr_score']}%" if entry["ecr_score"] is not None else "ECR not yet calculated"
+        summary = entry.get("learning_summary") or (
+            f"ECR {entry['ecr_score']}%" if entry["ecr_score"] is not None else "ECR not yet calculated"
+        )
         note = f"\n    Player note: \"{entry['user_note']}\"" if entry["user_note"] else ""
-        lines.append(f"\n[{entry['date']}] {ecr}{note}")
+        lines.append(f"\n[{entry['date']}] {summary}{note}")
         for t in entry["tasks"]:
             tick = "✓" if t["is_completed"] else "✗"
             lines.append(f"  {tick} {t['duration_mins']}m — {t['title']}")
@@ -43,9 +45,6 @@ def build_context(
     stats: dict,
     ai_context: dict,
     target_date: Optional[str],
-    get_phase_fn,
-    compute_arc_day_fn,
-    compute_budget_fn,
 ) -> "ThinkingContext":
     from datetime import date as date_cls
 
@@ -53,9 +52,9 @@ def build_context(
     metadata = ai_context["metadata"]
     arc_start_date = metadata["current_arc"]["arc_start_date"]
 
-    arc_day_index = compute_arc_day_fn(arc_start_date, today)
-    phase, phase_instruction = get_phase_fn(arc_day_index)
-    task_budget = compute_budget_fn(stats["difficulty_multiplier"])
+    arc_day_index = compute_arc_day_index(arc_start_date, today)
+    phase, phase_instruction = get_phase(arc_day_index)
+    task_budget = compute_task_budget(stats["difficulty_multiplier"])
 
     week_number = min(((arc_day_index - 1) // 7) + 1, 4)
     milestones = metadata["current_arc"].get("milestones", [])
@@ -66,7 +65,8 @@ def build_context(
 
     # Fetch last 5 completed days (exclude today)
     all_plans = plan_dao.get_last_n_plans(user_id, n=6)
-    past_plans = [p for p in all_plans if p["date"] != today][:5]
+    past_plans = [p for p in all_plans
+                  if p["date"] != today and p.get("ecr_score") is not None][:5]
     past_plans.reverse()  # oldest first
 
     recent_history = []
@@ -76,6 +76,7 @@ def build_context(
             "date": plan["date"],
             "ecr_score": plan["ecr_score"],
             "user_note": plan["user_note"],
+            "learning_summary": plan.get("learning_summary"),
             "tasks": tasks,
         })
 

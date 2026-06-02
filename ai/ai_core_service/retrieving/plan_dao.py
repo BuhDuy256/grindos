@@ -31,7 +31,7 @@ def get_daily_plan(user_id: int, date: str) -> Optional[dict]:
 def update_daily_plan(plan_id: int, **fields) -> None:
     if not fields:
         return
-    allowed = {"progress_analysis", "system_message", "ecr_score", "user_note"}
+    allowed = {"progress_analysis", "system_message", "ecr_score", "user_note", "learning_summary", "ai_insight"}
     cols = {k: v for k, v in fields.items() if k in allowed}
     if not cols:
         return

@@ -82,11 +82,17 @@ def init_db() -> None:
         CREATE INDEX IF NOT EXISTS idx_daily_plans_user_date ON daily_plans(user_id, date);
         CREATE INDEX IF NOT EXISTS idx_tasks_plan_parent     ON tasks(daily_plan_id, parent_id);
     """)
-    # Non-destructive migration: add description column if it doesn't exist yet
-    existing = [r[1] for r in conn.execute("PRAGMA table_info(tasks)").fetchall()]
-    if "description" not in existing:
+    # Non-destructive migrations
+    task_cols = [r[1] for r in conn.execute("PRAGMA table_info(tasks)").fetchall()]
+    if "description" not in task_cols:
         conn.execute("ALTER TABLE tasks ADD COLUMN description TEXT")
-    conn.commit()
+
+    plan_cols = [r[1] for r in conn.execute("PRAGMA table_info(daily_plans)").fetchall()]
+    if "learning_summary" not in plan_cols:
+        conn.execute("ALTER TABLE daily_plans ADD COLUMN learning_summary TEXT")
+    if "ai_insight" not in plan_cols:
+        conn.execute("ALTER TABLE daily_plans ADD COLUMN ai_insight TEXT")
+
     conn.commit()
     conn.close()
 

@@ -1,12 +1,68 @@
 import asyncio
-import json
+import importlib
+import pkgutil
 from collections import defaultdict
-from datetime import date, timedelta
+from datetime import date
+from pathlib import Path
 
-from ai_core_service.learning.math_stats import apply_stat_evolution, compute_ecr
+import yaml
+
+from ai_core_service.arc_utils import compute_arc_day_index
+from ai_core_service.learning.algorithms.base import AlgoInput, BaseAlgorithm
 from ai_core_service.learning.prompts.arc_bridge.service import call_arc_bridge
 from ai_core_service.retrieving import plan_dao, user_dao
-from ai_core_service.thinking.engine import compute_arc_day_index
+
+
+def _discover_algos() -> dict[str, type[BaseAlgorithm]]:
+    registry: dict[str, type[BaseAlgorithm]] = {}
+    import ai_core_service.learning.algorithms as pkg
+    for _, name, ispkg in pkgutil.iter_modules(pkg.__path__):
+        if ispkg:
+            mod = importlib.import_module(f"ai_core_service.learning.algorithms.{name}.algo")
+            for attr in vars(mod).values():
+                if isinstance(attr, type) and issubclass(attr, BaseAlgorithm) and attr is not BaseAlgorithm:
+                    registry[attr.name] = attr
+    return registry
+
+
+def _load_enabled(registry: dict[str, type[BaseAlgorithm]]) -> list[BaseAlgorithm]:
+    cfg_path = Path(__file__).parent / "config.yaml"
+    cfg = yaml.safe_load(cfg_path.read_text())
+    return [
+        registry[a["name"]]()
+        for a in cfg.get("algorithms", [])
+        if a.get("enabled") and a["name"] in registry
+    ]
+
+
+def _synthesize(brainstorm: dict[str, dict], tasks: list[dict]) -> dict:
+    ecr_result = brainstorm.get("ecr_stat_evolution", {})
+    if not ecr_result or "error" in ecr_result:
+        reason = ecr_result.get("error", "ecr_stat_evolution not in brainstorm")
+        return {"status": "error", "reason": reason}
+
+    ecr_int       = ecr_result["ecr_int"]
+    event         = ecr_result["event"]
+    updated_stats = ecr_result["updated_stats"]
+    active        = [t for t in tasks if t["modification_state"] != "DELETED"]
+    completed     = sum(1 for t in active if t["is_completed"])
+    total         = len(active)
+    streak        = updated_stats.get("streak", 0)
+    event_label   = {"POWER_UP": "POWER UP", "STABLE": "STABLE", "PENALTY": "PENALTY"}.get(event, event)
+
+    learning_summary = (
+        f"ECR {ecr_int}% [{event_label}]. "
+        f"Completed {completed}/{total} tasks "
+        f"({ecr_result['completed_mins']}/{ecr_result['total_mins']} min). "
+        f"Streak: {streak} days."
+    )
+    return {
+        "status": "ok",
+        "ecr_int": ecr_int,
+        "event": event,
+        "updated_stats": updated_stats,
+        "learning_summary": learning_summary,
+    }
 
 
 def _build_execution_log(plans: list[dict]) -> str:
@@ -28,24 +84,45 @@ def run_learning_for_user(user_id: int, target_date: str | None = None) -> dict:
     plan_id = plan["id"]
     tasks = plan_dao.get_plan_tasks_flat(plan_id)
 
-    completed_mins = sum(t["duration_mins"] for t in tasks if t["is_completed"] and t["modification_state"] != "DELETED")
-    total_mins = sum(t["duration_mins"] for t in tasks if t["modification_state"] != "DELETED")
-
-    ecr = compute_ecr(completed_mins, total_mins)
-    ecr_int = round(ecr)
-
     stats = user_dao.get_player_stats(user_id)
     if not stats:
         return {"status": "error", "reason": "Player stats not found."}
 
-    updated_stats, event = apply_stat_evolution(stats, ecr)
-    plan_dao.update_daily_plan(plan_id, ecr_score=ecr_int)
+    ctx = user_dao.get_ai_context(user_id)
+
+    algo_input = AlgoInput(
+        user_id=user_id,
+        date=today,
+        plan=plan,
+        tasks=tasks,
+        stats=stats,
+        ai_context=ctx,
+    )
+
+    registry = _discover_algos()
+    enabled_algos = _load_enabled(registry)
+
+    brainstorm: dict[str, dict] = {}
+    for algo in enabled_algos:
+        try:
+            brainstorm[algo.name] = algo.run(algo_input)
+        except Exception as exc:
+            brainstorm[algo.name] = {"error": str(exc)}
+
+    synthesis = _synthesize(brainstorm, tasks)
+    if synthesis["status"] == "error":
+        return synthesis
+
+    plan_dao.update_daily_plan(
+        plan_id,
+        ecr_score=synthesis["ecr_int"],
+        learning_summary=synthesis["learning_summary"],
+    )
     user_dao.update_player_stats(user_id, **{
-        k: updated_stats[k]
+        k: synthesis["updated_stats"][k]
         for k in ("difficulty_multiplier", "exp", "str_stat", "int_stat", "vit_stat", "streak")
     })
 
-    ctx = user_dao.get_ai_context(user_id)
     metadata = ctx["metadata"]
     arc_start_date = metadata["current_arc"]["arc_start_date"]
     arc_day_index = compute_arc_day_index(arc_start_date, target_date)
@@ -56,7 +133,7 @@ def run_learning_for_user(user_id: int, target_date: str | None = None) -> dict:
         bridge_result = call_arc_bridge(
             main_goal=ctx["main_goal"],
             execution_log=execution_log,
-            final_stats=updated_stats,
+            final_stats=synthesis["updated_stats"],
         )
         user_dao.update_ai_context(
             user_id,
@@ -64,7 +141,11 @@ def run_learning_for_user(user_id: int, target_date: str | None = None) -> dict:
             bridge_choices=[c.model_dump() for c in bridge_result.choices],
         )
 
-    return {"status": "ok", "ecr": ecr_int, "event": event}
+    return {
+        "status": "ok",
+        "ecr": synthesis["ecr_int"],
+        "event": synthesis["event"],
+    }
 
 
 async def run_learning_batch(target_date: str | None = None) -> dict:

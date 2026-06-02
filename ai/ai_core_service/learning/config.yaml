@@ -1,0 +1,3 @@
+algorithms:
+  - name: ecr_stat_evolution
+    enabled: true

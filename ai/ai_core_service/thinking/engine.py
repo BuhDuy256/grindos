@@ -6,47 +6,12 @@ from datetime import date, timedelta
 
 from google.genai import types
 
+from ai_core_service.arc_utils import compute_arc_day_index, compute_task_budget, get_phase
 from ai_core_service.retrieving import plan_dao, user_dao
 from ai_core_service.retrieving.connection import call_gemini
 from ai_core_service.thinking.context import build_context
 from ai_core_service.thinking.guardrails import DailyPlanOutput, validate_plan_output
 from ai_core_service.thinking.prompts.daily_task.service import get_hydrated_prompt
-
-PHASE_INSTRUCTIONS: dict[str, str] = {
-    "CALIBRATE": (
-        "The system is initializing. Lower cognitive friction. Prioritize hyper-actionable, "
-        "low-barrier Starter tasks (<5 mins) to build momentum. Keep total budget restricted."
-    ),
-    "CHALLENGING": (
-        "The system is entering peak conflict mode. Escalate difficulty. Enforce dense, "
-        "high-load Deep Work tasks. Force user into aggressive skill acquisition boundaries."
-    ),
-    "ROUTINE": (
-        "The system is stabilizing into habits. Maintain steady load. Balance tasks evenly. "
-        "If day equals 30, activate Judgment Day protocol: swap standard task array for exactly "
-        "ONE comprehensive evaluation challenge task."
-    ),
-}
-
-
-def get_phase(arc_day_index: int) -> tuple[str, str]:
-    if 1 <= arc_day_index <= 5:
-        phase = "CALIBRATE"
-    elif 6 <= arc_day_index <= 20:
-        phase = "CHALLENGING"
-    else:
-        phase = "ROUTINE"
-    return phase, PHASE_INSTRUCTIONS[phase]
-
-
-def compute_arc_day_index(arc_start_date: str, reference_date: str | None = None) -> int:
-    start = date.fromisoformat(arc_start_date)
-    ref = date.fromisoformat(reference_date) if reference_date else date.today()
-    return (ref - start).days + 1
-
-
-def compute_task_budget(difficulty_multiplier: float) -> int:
-    return int(120 * difficulty_multiplier)
 
 
 def _try_json_repair(raw: str) -> dict | None:
@@ -115,9 +80,6 @@ def run_thinking_for_user(user_id: int, target_date: str | None = None) -> None:
         stats=stats,
         ai_context=ctx,
         target_date=today,
-        get_phase_fn=get_phase,
-        compute_arc_day_fn=compute_arc_day_index,
-        compute_budget_fn=compute_task_budget,
     )
 
     prompt = get_hydrated_prompt(thinking_ctx)
