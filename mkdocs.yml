@@ -50,6 +50,7 @@ nav:
     - AI Backend: architecture/ai-architecture.md
     - Database: architecture/database.md
     - AI Core:
+    - AI Core:
       - Overview: architecture/ai-core/01_architecture_overview.md
       - Database Schema: architecture/ai-core/02_database_schema.md
       - Prompt Contract: architecture/ai-core/03_prompt_service_contract.md
