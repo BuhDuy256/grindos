@@ -20,6 +20,12 @@ build/
 venv/
 *.db
 
+# Docs build output
+site/
+
+# Shared database
+db/*.db
+
 # Logs
 *.log
 

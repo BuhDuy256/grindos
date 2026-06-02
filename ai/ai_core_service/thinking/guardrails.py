@@ -4,6 +4,7 @@ from pydantic import BaseModel, field_validator
 
 class TaskOutput(BaseModel):
     title: str
+    description: Optional[str] = None
     duration_mins: int
     parent_id: Optional[int] = None
     origin_type: Literal["SYSTEM_GENERATED"] = "SYSTEM_GENERATED"

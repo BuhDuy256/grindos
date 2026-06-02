@@ -26,6 +26,7 @@ class ForgeRequest(BaseModel):
     username: str
     timezone: str
     main_goal: str
+    user_context: Optional[str] = None
 
 
 class ForgeResponse(BaseModel):
@@ -63,12 +64,16 @@ def forge_onboarding(req: ForgeRequest):
         raise HTTPException(status_code=409, detail="User already onboarded.")
 
     # Generate Arc I via Gemini BEFORE writing to DB so failed calls leave no orphan rows
+    context_block = (
+        f"\n\nPlayer profile context:\n{req.user_context}" if req.user_context else ""
+    )
     forge_prompt = (
         f"You are a narrative AI for a gamified productivity system called GrindOS.\n"
-        f"A new player has declared their main goal: \"{req.main_goal}\"\n\n"
+        f"A new player has declared their main goal: \"{req.main_goal}\"{context_block}\n\n"
         f"Create Arc I — the first 30-day campaign arc for this player.\n"
         f"Generate an arc_name (e.g. 'Arc I: The Awakening Fog') and exactly 4 weekly milestones "
         f"that progressively build toward the main goal.\n"
+        f"Use the player profile context to calibrate difficulty, pace, and milestone specificity.\n"
         f"Keep objectives specific, actionable, and grounded in the goal domain.\n"
         f"Do NOT include text outside the JSON response."
     )

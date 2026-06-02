@@ -8,6 +8,7 @@ from google.genai import types
 
 from ai_core_service.retrieving import plan_dao, user_dao
 from ai_core_service.retrieving.connection import call_gemini
+from ai_core_service.thinking.context import build_context
 from ai_core_service.thinking.guardrails import DailyPlanOutput, validate_plan_output
 from ai_core_service.thinking.prompts.daily_task.service import get_hydrated_prompt
 
@@ -51,11 +52,8 @@ def compute_task_budget(difficulty_multiplier: float) -> int:
 def _try_json_repair(raw: str) -> dict | None:
     """3-pass structural repair on malformed LLM JSON output."""
     text = raw.strip()
-    # Pass 1: strip markdown code fences
     text = re.sub(r"```(?:json)?\s*|\s*```", "", text).strip()
-    # Pass 2: remove trailing commas before closing brackets
     text = re.sub(r",(\s*[}\]])", r"\1", text)
-    # Pass 3: extract outermost JSON object
     match = re.search(r"\{.*\}", text, re.DOTALL)
     if match:
         try:
@@ -72,7 +70,8 @@ def _build_fallback_plan(user_id: int, today: str) -> tuple[str, str, list[dict]
         prev_tasks = plan_dao.get_tasks_tree(yesterday_plan["id"])
         tasks = [
             {
-                "title": "[FALLBACK] " + t['title'].replace("[FALLBACK] ", ""),
+                "title": "[FALLBACK] " + t["title"].replace("[FALLBACK] ", ""),
+                "description": t.get("description"),
                 "duration_mins": t["duration_mins"],
                 "parent_id": None,
                 "origin_type": "SYSTEM_GENERATED",
@@ -84,6 +83,7 @@ def _build_fallback_plan(user_id: int, today: str) -> tuple[str, str, list[dict]
         tasks = [
             {
                 "title": "[FALLBACK] Complete your primary study objective for today.",
+                "description": None,
                 "duration_mins": 120,
                 "parent_id": None,
                 "origin_type": "SYSTEM_GENERATED",
@@ -102,7 +102,6 @@ def run_thinking_for_user(user_id: int, target_date: str | None = None) -> None:
     model_name = os.getenv("GEMINI_MODEL", "gemini-2.5-flash-lite")
     today = target_date or date.today().isoformat()
 
-    # Skip if today's plan already exists (idempotent)
     if plan_dao.get_daily_plan(user_id, today):
         return
 
@@ -111,26 +110,17 @@ def run_thinking_for_user(user_id: int, target_date: str | None = None) -> None:
     if not stats or not ctx:
         return
 
-    metadata = ctx["metadata"]
-    arc_start_date = metadata["current_arc"]["arc_start_date"]
-    arc_day_index = compute_arc_day_index(arc_start_date, today)
-    phase, phase_instruction = get_phase(arc_day_index)
-    task_budget = compute_task_budget(stats["difficulty_multiplier"])
-
-    week_number = ((arc_day_index - 1) // 7) + 1
-    milestones = metadata["current_arc"].get("milestones", [])
-    current_milestone = next(
-        (m["objective"] for m in milestones if m["week_number"] == week_number),
-        milestones[-1]["objective"] if milestones else "Complete your daily training tasks.",
-    )
-
-    prompt = get_hydrated_prompt(
+    thinking_ctx = build_context(
+        user_id=user_id,
         stats=stats,
-        milestone=current_milestone,
-        phase=phase,
-        phase_instruction=phase_instruction,
-        task_budget=task_budget,
+        ai_context=ctx,
+        target_date=today,
+        get_phase_fn=get_phase,
+        compute_arc_day_fn=compute_arc_day_index,
+        compute_budget_fn=compute_task_budget,
     )
+
+    prompt = get_hydrated_prompt(thinking_ctx)
 
     plan_data: DailyPlanOutput | None = None
     raw_response = ""
@@ -146,14 +136,14 @@ def run_thinking_for_user(user_id: int, target_date: str | None = None) -> None:
                 model_name=model_name,
             )
             raw_response = response.text
-            plan_data = validate_plan_output(json.loads(raw_response), task_budget)
+            plan_data = validate_plan_output(json.loads(raw_response), thinking_ctx.task_budget)
             break
         except Exception:
             if attempt < 2:
                 repaired = _try_json_repair(raw_response)
                 if repaired:
                     try:
-                        plan_data = validate_plan_output(repaired, task_budget)
+                        plan_data = validate_plan_output(repaired, thinking_ctx.task_budget)
                         break
                     except Exception:
                         pass

@@ -9,7 +9,8 @@ from google.genai import types
 
 load_dotenv()
 
-DB_PATH = Path(__file__).parent.parent.parent / "grindos.db"
+_default_db = Path(__file__).resolve().parent.parent.parent.parent / "db" / "grindos.db"
+DB_PATH = Path(os.getenv("DATABASE_URL", str(_default_db)))
 
 _gemini_primary: Optional[genai.Client] = None
 _gemini_backup: Optional[genai.Client] = None
@@ -81,6 +82,11 @@ def init_db() -> None:
         CREATE INDEX IF NOT EXISTS idx_daily_plans_user_date ON daily_plans(user_id, date);
         CREATE INDEX IF NOT EXISTS idx_tasks_plan_parent     ON tasks(daily_plan_id, parent_id);
     """)
+    # Non-destructive migration: add description column if it doesn't exist yet
+    existing = [r[1] for r in conn.execute("PRAGMA table_info(tasks)").fetchall()]
+    if "description" not in existing:
+        conn.execute("ALTER TABLE tasks ADD COLUMN description TEXT")
+    conn.commit()
     conn.commit()
     conn.close()
 

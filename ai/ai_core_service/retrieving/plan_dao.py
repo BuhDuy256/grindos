@@ -52,13 +52,14 @@ def bulk_create_tasks(plan_id: int, tasks: list[dict]) -> None:
     try:
         conn.executemany(
             """INSERT INTO tasks
-               (daily_plan_id, parent_id, title, duration_mins, origin_type, modification_state)
-               VALUES (:daily_plan_id, :parent_id, :title, :duration_mins, :origin_type, :modification_state)""",
+               (daily_plan_id, parent_id, title, description, duration_mins, origin_type, modification_state)
+               VALUES (:daily_plan_id, :parent_id, :title, :description, :duration_mins, :origin_type, :modification_state)""",
             [
                 {
                     "daily_plan_id": plan_id,
                     "parent_id": t.get("parent_id"),
                     "title": t["title"],
+                    "description": t.get("description"),
                     "duration_mins": t["duration_mins"],
                     "origin_type": t.get("origin_type", "SYSTEM_GENERATED"),
                     "modification_state": t.get("modification_state", "UNCHANGED"),
@@ -78,14 +79,14 @@ def get_tasks_tree(plan_id: int) -> list[dict]:
         rows = conn.execute(
             """
             WITH RECURSIVE task_tree AS (
-                SELECT id, daily_plan_id, parent_id, title, duration_mins,
+                SELECT id, daily_plan_id, parent_id, title, description, duration_mins,
                        is_completed, origin_type, modification_state, 0 AS depth
                 FROM   tasks
                 WHERE  daily_plan_id = ? AND parent_id IS NULL
 
                 UNION ALL
 
-                SELECT t.id, t.daily_plan_id, t.parent_id, t.title, t.duration_mins,
+                SELECT t.id, t.daily_plan_id, t.parent_id, t.title, t.description, t.duration_mins,
                        t.is_completed, t.origin_type, t.modification_state, tt.depth + 1
                 FROM   tasks t
                 INNER JOIN task_tree tt ON t.parent_id = tt.id
@@ -178,13 +179,14 @@ def create_plan_with_tasks(
         plan_id = cursor.lastrowid
         conn.executemany(
             """INSERT INTO tasks
-               (daily_plan_id, parent_id, title, duration_mins, origin_type, modification_state)
-               VALUES (?, ?, ?, ?, ?, ?)""",
+               (daily_plan_id, parent_id, title, description, duration_mins, origin_type, modification_state)
+               VALUES (?, ?, ?, ?, ?, ?, ?)""",
             [
                 (
                     plan_id,
                     t.get("parent_id"),
                     t["title"],
+                    t.get("description"),
                     t["duration_mins"],
                     t.get("origin_type", "SYSTEM_GENERATED"),
                     t.get("modification_state", "UNCHANGED"),
