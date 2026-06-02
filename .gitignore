@@ -7,6 +7,25 @@ Thumbs.db
 .env.*
 !.env.example
 
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+*.db
+
+# Docs build output
+site/
+
+# Shared database
+db/*.db
+
 # Logs
 *.log
 

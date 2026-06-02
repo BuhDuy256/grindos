@@ -3,135 +3,125 @@
 ## Overview
 
 ```
-System
-├── Browser
-│
-├── Next.js (Web)                        ← this document
-│   ├── app/         routes & pages
-│   ├── features/    domain logic per feature
-│   ├── shared/      UI primitives & utilities
-│   ├── lib/         DB, auth (infrastructure)
-│   └── middleware   auth guards, redirects
-│   │
-│   └── Request flow: Route → Action → Service → DB
-│
-└── AI Backend
-    └── prompts · inference · pipelines
+Browser / Mobile App
+        │
+        ▼
+┌─────────────────┐        ┌─────────────────┐        ┌─────────────────┐
+│   Next.js (FE)  │ ──────▶│   Go/Gin (API)  │ ──────▶│ FastAPI (AI Core│
+│   web/          │  HTTP  │   api/          │  HTTP  │   ai/           │
+│   React + UI    │        │   REST API      │        │   Gemini + DB   │
+└─────────────────┘        └─────────────────┘        └─────────────────┘
+                                    │
+                                    ▼
+                               PostgreSQL
+                             (production DB)
 ```
 
----
-
-## System Overview
-
-The application has three parts:
-
-- **Web** — Next.js app that serves both the frontend UI and the backend API
-- **AI Backend** — separate service handling AI features (prompts, inference, pipelines)
-
-This document covers the **Web** layer only.
+- **Next.js** (`web/`) — Frontend only: React pages, UI components. Calls Go API over HTTP.
+- **Go/Gin** (`api/`) — Web Backend: auth, business logic, REST API shared by web and mobile.
+- **FastAPI** (`ai/`) — AI Core: Gemini pipelines, batch jobs. Internal service, not exposed publicly.
 
 ---
 
 ## Folder Structure
 
+### `web/` — Next.js Frontend
+
 ```
 web/
-├── app/              # Next.js routes (pages + API routes)
-├── features/         # Domain logic, one folder per feature
-├── shared/           # Reusable UI components and utilities
-├── lib/              # App-wide infrastructure (DB, auth)
-├── middleware.ts     # Edge middleware (auth guards, redirects)
+├── app/              # Routes and pages (React Server + Client Components)
+├── features/         # UI logic per domain feature
+│   └── [feature]/
+│       ├── components/        # Feature-scoped UI
+│       ├── [feature].hooks.ts # Client-side state/data fetching
+│       └── [feature].types.ts # Types local to this feature
+├── shared/           # Reusable UI primitives (no domain knowledge)
+│   ├── components/   # Button, Input, Modal, etc.
+│   └── utils/        # Stateless helpers (cn, formatDate, etc.)
+├── lib/
+│   └── api-client.ts # Typed HTTP client pointing to Go API
+├── middleware.ts      # Auth guards, redirects (reads JWT from cookie)
 └── types/            # Global TypeScript declarations
 ```
 
-### `app/`
+Next.js has **no database access and no business logic**. All mutations go through the Go API. `lib/` contains only the HTTP client, not a DB connection.
 
-Next.js App Router. Contains only routing concerns — layout, page entry points, and API route handlers. No business logic lives here.
-
+Request flow (web):
 ```
-app/
-├── layout.tsx
-├── page.tsx
-└── [route-name]/
-    └── page.tsx
+Page / Component → api-client.ts → Go API → response → render
 ```
 
-### `features/`
-
-The heart of the application. Each feature is self-contained:
+### `api/` — Go Web Backend
 
 ```
-features/
-└── [feature-name]/
-    ├── components/       # UI components scoped to this feature
-    ├── [feature].actions.ts   # Server Actions (mutations, form handlers)
-    ├── [feature].service.ts   # Business logic, DB queries
-    ├── [feature].types.ts     # Types local to this feature
-    └── [feature].validator.ts # Input validation (Zod or similar)
+api/
+├── cmd/
+│   └── server/
+│       └── main.go          # Entry point, wires router + middleware
+├── internal/
+│   ├── handler/             # HTTP handlers — thin, delegate to service
+│   ├── service/             # Business logic
+│   ├── repository/          # DB access (SQL queries)
+│   ├── middleware/          # JWT auth, logging, rate limiting
+│   └── client/              # HTTP client for calling AI Core (FastAPI)
+├── pkg/
+│   └── dto/                 # Request/response structs (shared shapes)
+├── go.mod
+├── go.sum
+└── .env
 ```
 
-Feature code should not import from other features. Cross-feature needs belong in `shared/` or `lib/`.
-
-### `shared/`
-
-Generic, reusable building blocks with no domain knowledge.
-
-- `components/` — design system primitives (Button, Input, Modal, etc.)
-- `utils/` — stateless helpers (e.g., `cn` for class merging)
-
-If a component knows about a feature, it doesn't belong here.
-
-### `lib/`
-
-Infrastructure singletons used across the app:
-
-- `database.ts` — DB client/connection
-- `auth.ts` — auth session helpers
-
-Keep this thin. Business logic goes in `features/`, not here.
+Request flow (Go API):
+```
+Handler → Middleware (auth) → Service → Repository → DB
+                                      └→ client/ → AI Core (FastAPI)
+```
 
 ---
 
-## Layering Model
+## Service Boundaries
+
+| Concern | Lives in |
+|---|---|
+| React pages, UI components | `web/` (Next.js) |
+| Auth (JWT issue + verify) | `api/` (Go) |
+| User data, daily plan, stats | `api/` (Go) → PostgreSQL |
+| AI task generation, ECR calc | `ai/` (FastAPI) |
+| Gemini calls, batch pipelines | `ai/` (FastAPI) |
+| Mobile API | same `api/` (Go) endpoints |
+
+---
+
+## Auth Flow
 
 ```
-Route (app/) → Action (features/*.actions) → Service (features/*.service) → DB (lib/)
+1. User logs in → POST /api/v1/auth/login (Go)
+2. Go issues a signed JWT → stored in httpOnly cookie (web) or returned as token (mobile)
+3. Every subsequent request → Go middleware verifies JWT
+4. Next.js middleware reads cookie → redirects to /login if missing
 ```
 
-- **Routes** handle HTTP concerns only (params, response shape)
-- **Actions** are the entry point for mutations; validate input, call services
-- **Services** own business logic and data access
-- **lib/** provides shared infrastructure; no business logic
+AI Core does not have its own auth. It only accepts calls from the Go backend (internal network / same host).
+
+---
+
+## Communication Rules
+
+- **Next.js → Go API:** all calls go through `lib/api-client.ts`. No direct DB access from Next.js.
+- **Go API → AI Core:** Go calls FastAPI over HTTP via `internal/client/`. AI Core is never called directly from the frontend.
+- **Mobile → Go API:** same endpoints as web. No separate mobile backend.
+- **AI Core → DB:** FastAPI reads/writes the same PostgreSQL database as Go. Each service owns its own tables (no cross-service table writes).
 
 ---
 
 ## Design Principles
 
-**Feature-first organization.** Code is grouped by domain, not by type. Everything related to a feature lives in one place.
+**Frontend is display only.** Next.js renders UI and calls the Go API. It owns no business logic and has no DB connection.
 
-**Keep routes thin.** Pages and API handlers should do no real work — delegate immediately to actions or services.
+**Go API is the single entry point.** Both web and mobile clients hit the same Go endpoints. Auth, validation, and business rules live here.
 
-**No cross-feature imports.** Features are isolated. Shared logic is extracted to `shared/` or `lib/`.
+**AI Core is internal.** FastAPI is not exposed to the internet. Only the Go backend calls it. This means AI-specific concerns (prompt engineering, Gemini errors, batch retries) never leak into the frontend or mobile.
 
-**Validate at the boundary.** Input validation happens in `.actions.ts` or `.validator.ts`, before it reaches service logic.
+**Validate at the boundary.** Input validation happens in Go handlers/middleware before reaching service logic. Frontend sends raw user input; Go enforces correctness.
 
-**Colocate types.** Feature-specific types live in `[feature].types.ts`. Only truly global types go in `types/global.d.ts`.
-
----
-
-## Conventions
-
-| Concern | Where it lives |
-|---|---|
-| Page or API route | `app/` |
-| Server Action (form, mutation) | `features/[name].actions.ts` |
-| Business logic / DB query | `features/[name].service.ts` |
-| Shared UI primitive | `shared/components/` |
-| DB or auth client | `lib/` |
-| Global type | `types/global.d.ts` |
-
----
-
-## Boundaries with AI Backend
-
-The Web layer communicates with the AI backend over HTTP. AI-specific logic (prompt construction, model calls) must not live in the web layer. The web layer sends requests and consumes responses — it does not own AI behavior.
+**Each service owns its schema.** Go owns user-facing tables (users, sessions, preferences). AI Core owns AI-specific tables (daily_plans, tasks, ai_contexts, player_stats). No service writes to another service's tables directly.
