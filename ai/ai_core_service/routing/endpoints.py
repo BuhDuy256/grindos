@@ -32,6 +32,7 @@ class ForgeRequest(BaseModel):
 class ForgeResponse(BaseModel):
     status: str
     message: str
+    user_id: int
     active_arc: dict
 
 
@@ -60,8 +61,12 @@ class SelectBridgeRequest(BaseModel):
 def forge_onboarding(req: ForgeRequest):
     model_name = os.getenv("GEMINI_MODEL", "gemini-2.5-flash-lite")
 
-    if req.user_id and user_dao.get_user(req.user_id):
-        raise HTTPException(status_code=409, detail="User already onboarded.")
+    # If user_id provided, user already exists (created via /auth/register) — skip user creation
+    if req.user_id:
+        if not user_dao.get_user(req.user_id):
+            raise HTTPException(status_code=404, detail="User not found.")
+        if user_dao.get_ai_context(req.user_id):
+            raise HTTPException(status_code=409, detail="User already onboarded.")
 
     # Generate Arc I via Gemini BEFORE writing to DB so failed calls leave no orphan rows
     context_block = (
@@ -92,8 +97,11 @@ def forge_onboarding(req: ForgeRequest):
         raise HTTPException(status_code=502, detail=f"AI generation failed: {e}")
 
     # DB writes happen only after Gemini succeeds — no orphan rows on failure
-    user_id = user_dao.create_user(req.username, req.timezone)
-    user_dao.create_player_stats(user_id)
+    if req.user_id:
+        user_id = req.user_id
+    else:
+        user_id = user_dao.create_user(req.username, req.timezone)
+        user_dao.create_player_stats(user_id)
 
     today = date.today().isoformat()
     metadata = {
@@ -110,6 +118,7 @@ def forge_onboarding(req: ForgeRequest):
     return ForgeResponse(
         status="success",
         message="Campaign forged successfully.",
+        user_id=user_id,
         active_arc={
             "arc_id": 1,
             "arc_name": forge_data.arc_name,

@@ -31,8 +31,9 @@ class RunPipelineBody(BaseModel):
 
 
 class OnboardBody(BaseModel):
-    username: str
-    timezone: str
+    user_id: Optional[int] = None
+    username: str = ""
+    timezone: str = ""
     main_goal: str
     user_context: Optional[str] = None
 

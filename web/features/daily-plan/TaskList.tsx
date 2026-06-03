@@ -93,31 +93,51 @@ function AddTaskForm({
   planID,
   parentID,
   onAdd,
+  onConfirm,
+  onRollback,
   onCancel,
 }: {
   planID: number;
   parentID: number | null;
   onAdd: (task: Task) => void;
+  onConfirm: (tempId: number, realTask: Task) => void;
+  onRollback: (tempId: number) => void;
   onCancel: () => void;
 }) {
   const [title, setTitle] = useState("");
   const [mins, setMins] = useState("30");
-  const [saving, setSaving] = useState(false);
 
   async function submit() {
     if (!title.trim()) return;
-    setSaving(true);
-    const res = await apiClient.post<Task>("/v1/daily-plan/task", {
+
+    const tempId = -Date.now();
+    const tempTask: Task = {
+      id: tempId,
       plan_id: planID,
       parent_id: parentID,
       title: title.trim(),
+      description: null,
       duration_mins: parseInt(mins) || 30,
+      is_completed: false,
+      modification_state: "UNCHANGED",
+    };
+
+    // Optimistic: show immediately, close form
+    onAdd(tempTask);
+    setTitle("");
+    setMins("30");
+
+    // Background sync
+    const res = await apiClient.post<Task>("/v1/daily-plan/task", {
+      plan_id: planID,
+      parent_id: parentID,
+      title: tempTask.title,
+      duration_mins: tempTask.duration_mins,
     });
-    setSaving(false);
     if (!res.error) {
-      onAdd(res.data);
-      setTitle("");
-      setMins("30");
+      onConfirm(tempId, res.data);
+    } else {
+      onRollback(tempId);
     }
   }
 
@@ -148,7 +168,7 @@ function AddTaskForm({
       <span className="text-xs text-zinc-400">min</span>
       <button
         onClick={submit}
-        disabled={saving || !title.trim()}
+        disabled={!title.trim()}
         className="text-xs font-medium text-violet-600 hover:text-violet-800 disabled:opacity-40"
       >
         Add
@@ -167,14 +187,18 @@ function TaskRow({
   onToggle,
   onUpdate,
   onDelete,
-  onSubtaskAdded,
+  onAdd,
+  onConfirm,
+  onRollback,
 }: {
   task: Task;
   depth: number;
   onToggle: (id: number, val: boolean) => void;
   onUpdate: (id: number, title: string, mins: number) => void;
   onDelete: (id: number) => void;
-  onSubtaskAdded: (parentID: number, newTask: Task) => void;
+  onAdd: (task: Task) => void;
+  onConfirm: (tempId: number, realTask: Task) => void;
+  onRollback: (tempId: number) => void;
 }) {
   const [toggling, setToggling] = useState(false);
   const [addingSubtask, setAddingSubtask] = useState(false);
@@ -217,7 +241,7 @@ function TaskRow({
         {/* Checkbox */}
         <button
           onClick={handleToggle}
-          disabled={toggling}
+          disabled={toggling || task.id < 0}
           className={`mt-0.5 h-4 w-4 shrink-0 rounded border transition-colors ${
             task.is_completed
               ? "border-violet-500 bg-violet-500"
@@ -236,7 +260,7 @@ function TaskRow({
           <InlineEdit
             value={task.title}
             onSave={handleTitleSave}
-            className={`text-sm font-medium leading-snug ${task.is_completed ? "line-through text-zinc-400" : "text-zinc-900 dark:text-zinc-100"}`}
+            className={`text-sm font-medium leading-snug ${task.is_completed ? "line-through text-zinc-400" : task.id < 0 ? "text-zinc-400" : "text-zinc-900 dark:text-zinc-100"}`}
             inputClassName="text-sm font-medium w-full"
           />
           {task.description && !task.is_completed && (
@@ -263,14 +287,16 @@ function TaskRow({
           <button
             onClick={() => setAddingSubtask((v) => !v)}
             title="Add subtask"
-            className="text-xs text-zinc-400 hover:text-violet-600 px-1"
+            disabled={task.id < 0}
+            className="text-xs text-zinc-400 hover:text-violet-600 px-1 disabled:opacity-30"
           >
             +
           </button>
           <button
             onClick={handleDelete}
             title="Delete task"
-            className="text-xs text-zinc-400 hover:text-red-500 px-1"
+            disabled={task.id < 0}
+            className="text-xs text-zinc-400 hover:text-red-500 px-1 disabled:opacity-30"
           >
             ✕
           </button>
@@ -286,7 +312,9 @@ function TaskRow({
           onToggle={onToggle}
           onUpdate={onUpdate}
           onDelete={onDelete}
-          onSubtaskAdded={onSubtaskAdded}
+          onAdd={onAdd}
+          onConfirm={onConfirm}
+          onRollback={onRollback}
         />
       ))}
 
@@ -296,9 +324,11 @@ function TaskRow({
           planID={task.plan_id}
           parentID={task.id}
           onAdd={(newTask) => {
-            onSubtaskAdded(task.id, newTask);
+            onAdd(newTask);
             setAddingSubtask(false);
           }}
+          onConfirm={onConfirm}
+          onRollback={onRollback}
           onCancel={() => setAddingSubtask(false)}
         />
       )}
@@ -329,13 +359,16 @@ export function TaskList({
     setTasks((prev) => prev.filter((t) => t.id !== id));
   }
 
-  function handleSubtaskAdded(parentID: number, newTask: Task) {
-    setTasks((prev) => [...prev, newTask]);
+  function handleAdd(task: Task) {
+    setTasks((prev) => [...prev, task]);
   }
 
-  function handleRootAdded(newTask: Task) {
-    setTasks((prev) => [...prev, newTask]);
-    setAddingRoot(false);
+  function handleConfirm(tempId: number, realTask: Task) {
+    setTasks((prev) => prev.map((t) => (t.id === tempId ? realTask : t)));
+  }
+
+  function handleRollback(tempId: number) {
+    setTasks((prev) => prev.filter((t) => t.id !== tempId));
   }
 
   const tree = buildTree(tasks);
@@ -351,7 +384,9 @@ export function TaskList({
             onToggle={handleToggle}
             onUpdate={handleUpdate}
             onDelete={handleDelete}
-            onSubtaskAdded={handleSubtaskAdded}
+            onAdd={handleAdd}
+            onConfirm={handleConfirm}
+            onRollback={handleRollback}
           />
         ))}
       </ul>
@@ -360,7 +395,9 @@ export function TaskList({
         <AddTaskForm
           planID={planID}
           parentID={null}
-          onAdd={handleRootAdded}
+          onAdd={(task) => { handleAdd(task); setAddingRoot(false); }}
+          onConfirm={handleConfirm}
+          onRollback={handleRollback}
           onCancel={() => setAddingRoot(false)}
         />
       ) : (

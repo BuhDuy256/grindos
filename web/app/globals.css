@@ -1,26 +1,68 @@
 @import "tailwindcss";
 
+/* Class-based dark mode — inline script in layout sets .dark on <html> before hydration */
+@variant dark (&:where(.dark, .dark *));
+
+/* When user explicitly chose light, block system dark-mode media query from leaking in */
+@media (prefers-color-scheme: dark) {
+  html:not(.dark) {
+    color-scheme: light;
+  }
+}
+
+/* ── Ochre minimal palette ─────────────────────────────────── */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --bg:        #FFFBF2;
+  --fg:        #1C1810;
+  --accent:    #D4830A;
+  --border:    #EDE0C8;
+  --muted:     #8B7355;
+  --surface:   #F5EDD8;
+  --font-size-base: 15px;
+}
+
+html {
+  font-size: var(--font-size-base);
+}
+
+.dark {
+  --bg:      #0F0D0A;
+  --fg:      #F0EBE3;
+  --border:  #2A2318;
+  --muted:   #7A6B55;
+  --surface: #1A1610;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+  --color-background: var(--bg);
+  --color-foreground: var(--fg);
+  --color-accent:     var(--accent);
+  --color-border:     var(--border);
+  --color-muted:      var(--muted);
+  --color-surface:    var(--surface);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+button, [role="button"], a, label[for], select {
+  cursor: pointer;
+}
+
+button:not(:disabled), [role="button"]:not([aria-disabled="true"]) {
+  transition: opacity 120ms ease, background-color 120ms ease, color 120ms ease, border-color 120ms ease;
+}
+
+button:not(:disabled):active {
+  opacity: 0.75;
+  transform: scale(0.98);
+}
+
+button:disabled {
+  cursor: not-allowed;
 }

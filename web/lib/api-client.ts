@@ -1,3 +1,5 @@
+import { getToken } from "./auth";
+
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080";
 
 type ApiOk<T> = { data: T; error: null };
@@ -8,12 +10,14 @@ async function apiFetch<T>(
   path: string,
   options?: RequestInit,
 ): Promise<ApiResult<T>> {
+  const token = getToken();
   try {
     const res = await fetch(`${API_BASE}${path}`, {
       ...options,
       credentials: "include",
       headers: {
         "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
         ...options?.headers,
       },
     });

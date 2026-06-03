@@ -1,11 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiClient } from "@/lib/api-client";
-import { saveActiveUser } from "@/features/user/useActiveUser";
-
-// ── Context questions ─────────────────────────────────────────────────────────
+import { useAuth } from "@/hooks/useAuth";
 
 const QUESTIONS = [
   {
@@ -35,44 +33,22 @@ const QUESTIONS = [
   },
 ];
 
-// ── Types ─────────────────────────────────────────────────────────────────────
-
-interface Milestone {
-  week_number: number;
-  objective: string;
-}
-
-interface OnboardResult {
-  user_id: number;
-  message: string;
-  active_arc: {
-    arc_name: string;
-    milestones: Milestone[];
-  };
-}
-
+interface Milestone { week_number: number; objective: string; }
+interface OnboardResult { user_id: number; message: string; active_arc: { arc_name: string; milestones: Milestone[] }; }
 type Step = "goal" | "questions" | "loading" | "success";
 
-// ── Sub-components ────────────────────────────────────────────────────────────
-
-function OptionButton({
-  label,
-  selected,
-  onClick,
-}: {
-  label: string;
-  selected: boolean;
-  onClick: () => void;
-}) {
+function OptionButton({ label, selected, onClick }: { label: string; selected: boolean; onClick: () => void }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className={`w-full text-left px-4 py-3 rounded-lg border text-sm transition-colors ${
-        selected
-          ? "border-violet-500 bg-violet-50 dark:bg-violet-950 text-violet-700 dark:text-violet-300 font-medium"
-          : "border-zinc-200 dark:border-zinc-700 hover:border-violet-300 hover:bg-zinc-50 dark:hover:bg-zinc-800"
-      }`}
+      className="w-full text-left px-4 py-3 rounded-xl border text-sm transition-colors"
+      style={{
+        borderColor: selected ? "var(--accent)" : "var(--border)",
+        background: selected ? "var(--surface)" : "transparent",
+        color: selected ? "var(--accent)" : "var(--fg)",
+        fontWeight: selected ? 500 : 400,
+      }}
     >
       {label}
     </button>
@@ -85,45 +61,38 @@ function ProgressDots({ total, current }: { total: number; current: number }) {
       {Array.from({ length: total }).map((_, i) => (
         <div
           key={i}
-          className={`h-1.5 rounded-full transition-all ${
-            i < current ? "bg-violet-600 w-6" : i === current ? "bg-violet-400 w-4" : "bg-zinc-200 dark:bg-zinc-700 w-4"
-          }`}
+          className="h-1 rounded-full transition-all"
+          style={{
+            width: i === current ? 24 : 16,
+            background: i <= current ? "var(--accent)" : "var(--border)",
+          }}
         />
       ))}
     </div>
   );
 }
 
-// ── Main page ─────────────────────────────────────────────────────────────────
-
 export default function OnboardingPage() {
   const router = useRouter();
+  const { user, loading: authLoading } = useAuth();
   const [step, setStep] = useState<Step>("goal");
   const [questionIndex, setQuestionIndex] = useState(0);
   const [error, setError] = useState("");
   const [result, setResult] = useState<OnboardResult | null>(null);
-
-  // Form state
-  const [username, setUsername] = useState("");
   const [mainGoal, setMainGoal] = useState("");
-  const [timezone, setTimezone] = useState("");
   const [answers, setAnswers] = useState<Record<string, string>>({});
 
-  useEffect(() => {
-    setTimezone(Intl.DateTimeFormat().resolvedOptions().timeZone);
-  }, []);
-
-  function buildUserContext(): string {
+  function buildUserContext() {
     return QUESTIONS.map((q) => `${q.question} → ${answers[q.id] ?? "not answered"}`).join("\n");
   }
 
   async function handleForge() {
+    if (!user) return;
     setStep("loading");
     setError("");
 
     const res = await apiClient.post<OnboardResult>("/admin/onboarding/forge", {
-      username: username.trim(),
-      timezone,
+      user_id: user.id,
       main_goal: mainGoal.trim(),
       user_context: buildUserContext(),
     });
@@ -134,121 +103,101 @@ export default function OnboardingPage() {
       return;
     }
 
-    saveActiveUser(res.data.user_id);
     setResult(res.data);
     setStep("success");
   }
 
-  // ── Step: Goal ──────────────────────────────────────────────────────────────
-  if (step === "goal") {
+  if (authLoading) {
     return (
-      <main className="mx-auto w-full max-w-xl px-4 py-12">
-        <div className="mb-8">
-          <p className="text-xs font-semibold text-violet-600 uppercase tracking-widest mb-2">GrindOS</p>
-          <h1 className="text-2xl font-bold tracking-tight">What's your goal?</h1>
-          <p className="text-sm text-zinc-500 mt-1">
-            Be specific. The AI will craft a 30-day arc tailored to what you declare here.
-          </p>
-        </div>
-
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium mb-1.5">Username</label>
-            <input
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              placeholder="player1"
-              className="w-full rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-violet-500 placeholder-zinc-400"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium mb-1.5">Main Goal</label>
-            <textarea
-              value={mainGoal}
-              onChange={(e) => setMainGoal(e.target.value)}
-              placeholder="e.g. Learn Golang backend development to get a job in 6 months"
-              rows={3}
-              className="w-full rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-violet-500 placeholder-zinc-400 resize-none"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium mb-1.5 text-zinc-500">Timezone</label>
-            <input
-              value={timezone}
-              onChange={(e) => setTimezone(e.target.value)}
-              className="w-full rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-violet-500 text-zinc-500"
-            />
-          </div>
-
-          <button
-            onClick={() => setStep("questions")}
-            disabled={!username.trim() || !mainGoal.trim()}
-            className="w-full rounded-lg bg-violet-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-violet-700 disabled:opacity-40 transition-colors mt-2"
-          >
-            Continue →
-          </button>
-        </div>
+      <main className="flex flex-1 items-center justify-center">
+        <p className="text-sm" style={{ color: "var(--muted)" }}>Loading...</p>
       </main>
     );
   }
 
-  // ── Step: Context questions ─────────────────────────────────────────────────
+  if (step === "goal") {
+    return (
+      <main className="mx-auto w-full max-w-xl px-4 py-12">
+        <p className="text-xs font-semibold uppercase tracking-widest mb-2" style={{ color: "var(--accent)" }}>
+          Welcome, {user?.username}
+        </p>
+        <h1 className="text-2xl font-bold tracking-tight mb-1">What's your goal?</h1>
+        <p className="text-sm mb-8" style={{ color: "var(--muted)" }}>
+          Be specific. The AI will craft a 30-day arc tailored to what you declare here.
+        </p>
+
+        <textarea
+          value={mainGoal}
+          onChange={(e) => setMainGoal(e.target.value)}
+          placeholder="e.g. Learn Golang backend development to get a job in 6 months"
+          rows={4}
+          className="w-full rounded-xl border px-4 py-3 text-sm outline-none resize-none mb-4"
+          style={{ background: "var(--surface)", borderColor: "var(--border)", color: "var(--fg)" }}
+        />
+
+        <button
+          onClick={() => setStep("questions")}
+          disabled={!mainGoal.trim()}
+          className="w-full rounded-xl px-4 py-3 text-sm font-medium text-white transition-opacity disabled:opacity-40"
+          style={{ background: "var(--accent)" }}
+        >
+          Continue →
+        </button>
+      </main>
+    );
+  }
+
   if (step === "questions") {
     const q = QUESTIONS[questionIndex];
     const isLast = questionIndex === QUESTIONS.length - 1;
-    const currentAnswer = answers[q.id];
 
     return (
       <main className="mx-auto w-full max-w-xl px-4 py-12">
         <ProgressDots total={QUESTIONS.length} current={questionIndex} />
 
-        <div className="mb-6">
-          <p className="text-xs text-zinc-400 mb-1">{questionIndex + 1} / {QUESTIONS.length}</p>
-          <h2 className="text-xl font-bold tracking-tight">{q.question}</h2>
-        </div>
+        <p className="text-xs mb-1" style={{ color: "var(--muted)" }}>{questionIndex + 1} / {QUESTIONS.length}</p>
+        <h2 className="text-xl font-bold tracking-tight mb-6">{q.question}</h2>
 
         <div className="space-y-2 mb-8">
           {q.options.map((opt) => (
             <OptionButton
               key={opt}
               label={opt}
-              selected={currentAnswer === opt}
+              selected={answers[q.id] === opt}
               onClick={() => setAnswers((a) => ({ ...a, [q.id]: opt }))}
             />
           ))}
         </div>
 
         {error && (
-          <p className="mb-4 text-sm text-red-500 rounded-lg bg-red-50 dark:bg-red-950 px-3 py-2">
+          <p className="mb-4 text-sm rounded-xl px-4 py-3" style={{ color: "var(--accent)", background: "var(--surface)" }}>
             {error}
           </p>
         )}
 
         <div className="flex gap-3">
           <button
-            onClick={() =>
-              questionIndex === 0 ? setStep("goal") : setQuestionIndex((i) => i - 1)
-            }
-            className="px-4 py-2.5 text-sm rounded-lg border border-zinc-200 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors"
+            onClick={() => questionIndex === 0 ? setStep("goal") : setQuestionIndex((i) => i - 1)}
+            className="px-4 py-3 text-sm rounded-xl border transition-colors"
+            style={{ borderColor: "var(--border)" }}
           >
             ← Back
           </button>
-
           {isLast ? (
             <button
               onClick={handleForge}
-              disabled={!currentAnswer}
-              className="flex-1 rounded-lg bg-violet-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-violet-700 disabled:opacity-40 transition-colors"
+              disabled={!answers[q.id]}
+              className="flex-1 rounded-xl px-4 py-3 text-sm font-medium text-white transition-opacity disabled:opacity-40"
+              style={{ background: "var(--accent)" }}
             >
               Forge Arc →
             </button>
           ) : (
             <button
               onClick={() => setQuestionIndex((i) => i + 1)}
-              disabled={!currentAnswer}
-              className="flex-1 rounded-lg bg-violet-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-violet-700 disabled:opacity-40 transition-colors"
+              disabled={!answers[q.id]}
+              className="flex-1 rounded-xl px-4 py-3 text-sm font-medium text-white transition-opacity disabled:opacity-40"
+              style={{ background: "var(--accent)" }}
             >
               Next →
             </button>
@@ -258,50 +207,55 @@ export default function OnboardingPage() {
     );
   }
 
-  // ── Step: Loading ───────────────────────────────────────────────────────────
   if (step === "loading") {
     return (
       <main className="flex flex-1 flex-col items-center justify-center gap-4 px-4">
-        <div className="h-8 w-8 rounded-full border-2 border-violet-600 border-t-transparent animate-spin" />
-        <p className="text-sm text-zinc-500">Forging your Arc with Gemini...</p>
-        <p className="text-xs text-zinc-400">~10 seconds</p>
+        <div
+          className="h-8 w-8 rounded-full border-2 border-t-transparent animate-spin"
+          style={{ borderColor: "var(--accent)", borderTopColor: "transparent" }}
+        />
+        <p className="text-sm" style={{ color: "var(--muted)" }}>Forging your Arc with AI...</p>
+        <p className="text-xs" style={{ color: "var(--muted)" }}>~10 seconds</p>
       </main>
     );
   }
 
-  // ── Step: Success ───────────────────────────────────────────────────────────
   if (step === "success" && result) {
     return (
       <main className="mx-auto w-full max-w-xl px-4 py-12">
-        <div className="mb-6">
-          <span className="text-3xl">⚡</span>
-          <h1 className="text-2xl font-bold tracking-tight mt-2">Arc forged.</h1>
-          <p className="text-sm text-zinc-500 mt-1">
-            User ID: {result.user_id} — your 30-day campaign is ready.
-          </p>
-        </div>
+        <h1 className="text-2xl font-bold tracking-tight mb-1">Arc forged.</h1>
+        <p className="text-sm mb-8" style={{ color: "var(--muted)" }}>
+          Your 30-day campaign is ready.
+        </p>
 
-        <div className="rounded-lg border border-violet-200 dark:border-violet-800 bg-violet-50 dark:bg-violet-950 px-5 py-4 mb-6">
-          <p className="text-xs font-semibold text-violet-500 uppercase tracking-wide mb-3">
+        <div
+          className="rounded-xl border px-5 py-4 mb-8"
+          style={{ borderColor: "var(--border)", background: "var(--surface)" }}
+        >
+          <p className="text-xs font-semibold uppercase tracking-widest mb-4" style={{ color: "var(--accent)" }}>
             {result.active_arc.arc_name}
           </p>
           <ul className="space-y-3">
             {result.active_arc.milestones.map((m) => (
               <li key={m.week_number} className="flex gap-3 text-sm">
-                <span className="shrink-0 font-mono text-xs font-bold text-violet-600 dark:text-violet-400 bg-violet-100 dark:bg-violet-900 px-1.5 py-0.5 rounded">
+                <span
+                  className="shrink-0 font-mono text-xs font-bold px-1.5 py-0.5 rounded"
+                  style={{ color: "var(--accent)", background: "var(--border)" }}
+                >
                   W{m.week_number}
                 </span>
-                <span className="text-zinc-700 dark:text-zinc-300">{m.objective}</span>
+                <span style={{ color: "var(--fg)" }}>{m.objective}</span>
               </li>
             ))}
           </ul>
         </div>
 
         <button
-          onClick={() => router.push("/admin")}
-          className="w-full rounded-lg bg-violet-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-violet-700 transition-colors"
+          onClick={() => router.push("/daily-plan")}
+          className="w-full rounded-xl px-4 py-3 text-sm font-medium text-white"
+          style={{ background: "var(--accent)" }}
         >
-          Go to Admin Panel →
+          Go to Daily Plan →
         </button>
       </main>
     );

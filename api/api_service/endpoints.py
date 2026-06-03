@@ -166,6 +166,32 @@ def delete_task(task_id: int):
     return {"ok": True}
 
 
+@router.get("/v1/player/profile")
+def get_player_profile(user_id: int):
+    conn = get_db()
+    row = conn.execute(
+        "SELECT level, exp, str_stat, int_stat, vit_stat, streak, difficulty_multiplier "
+        "FROM player_stats WHERE user_id = ?",
+        (user_id,),
+    ).fetchone()
+    conn.close()
+    if not row:
+        raise HTTPException(status_code=404, detail="Player not found")
+    return dict(row)
+
+
+@router.get("/v1/player/ecr-history")
+def get_ecr_history(user_id: int, days: int = 7):
+    conn = get_db()
+    rows = conn.execute(
+        "SELECT date, ecr_score, learning_summary FROM daily_plans "
+        "WHERE user_id = ? AND ecr_score IS NOT NULL ORDER BY date DESC LIMIT ?",
+        (user_id, days),
+    ).fetchall()
+    conn.close()
+    return {"history": [dict(r) for r in reversed(rows)]}
+
+
 @router.post("/v1/daily-plan/end-day")
 def end_day(body: EndDayBody):
     conn = get_db()

@@ -1,12 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { apiClient } from "@/lib/api-client";
 import { TaskList, type Task } from "@/features/daily-plan/TaskList";
 import { useActiveUser } from "@/features/user/useActiveUser";
 import { UserSwitcher } from "@/features/user/UserSwitcher";
-
-const USER_ID = 1;
+import { getUser } from "@/lib/auth";
 
 interface PlayerStats {
   user_id: number;
@@ -57,7 +57,15 @@ function StatBox({
 }
 
 export default function AdminPage() {
+  const router = useRouter();
   const today = new Date().toLocaleDateString("en-CA");
+
+  useEffect(() => {
+    const u = getUser();
+    if (!u) { router.replace("/login"); return; }
+    if (!u.is_admin) { router.replace("/daily-plan"); return; }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const { userId: USER_ID, setUserId } = useActiveUser();
   const [simDate, setSimDate] = useState(today);
   const [stats, setStats] = useState<PlayerStats | null>(null);
