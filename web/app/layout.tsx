@@ -14,7 +14,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
+    <html lang="en" className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`} suppressHydrationWarning>
       <head>
         {/* Run before React hydration to prevent dark-mode flash */}
         <script dangerouslySetInnerHTML={{ __html: `(function(){var r=document.documentElement;var t=localStorage.getItem('grindos_theme');var d=window.matchMedia('(prefers-color-scheme:dark)').matches;if(t==='dark'||(t!=='light'&&d)){r.classList.add('dark');}var sz={'small':'13px','medium':'15px','large':'18px'};var fs=localStorage.getItem('grindos_font_size')||'medium';r.style.setProperty('--font-size-base',sz[fs]||'15px');var ac=localStorage.getItem('grindos_accent');if(ac){r.style.setProperty('--accent',ac);}})();` }} />
