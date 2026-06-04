@@ -1,0 +1,185 @@
+/* ============================================================
+   THEME: Mochi — Warm Sketchbook Rescue
+   ============================================================
+   Overrides applied when `data-theme="mochi"` is set on <html>.
+   Inherits base tokens from design-tokens.css.
+   ============================================================ */
+
+/* ─── Light Mode Overrides ─────────────────────────────── */
+[data-theme="mochi"] {
+  /* Surface — slightly warmer paper */
+  --color-paper: #fdf8f8;
+  --color-surface: #fdf8f8;
+  --color-surface-container-low: #f7f3f2;
+  --color-surface-container: #f1edec;
+  --color-surface-container-high: #ebe7e7;
+  --color-surface-container-highest: #e5e2e1;
+  --color-surface-container-lowest: #ffffff;
+  --color-surface-bright: #fdf8f8;
+
+  /* Accent — warm amber for interactive elements */
+  --accent: #f8d66d;
+
+  /* Sketch styling — bolder, more hand-drawn */
+  --sketch-border-width: 2px;
+  --sketch-border-color: var(--color-primary);
+  --sketch-border-radius: var(--rounded-xl);
+
+  /* Mochi-specific tokens */
+  --mochi-card-radius: 22px;
+  --mochi-card-height: 400px;
+  --mochi-card-bg: var(--color-surface-container);
+  --mochi-card-border: 2px solid var(--color-primary);
+  --mochi-card-shadow: 2px 2px 0px 0px var(--color-surface-container-highest);
+
+  --mochi-task-radius: 18px;
+  --mochi-task-shadow: 2px 2px 0px 0px var(--color-surface-container-highest);
+
+  --mochi-btn-radius: var(--rounded-xl);
+  --mochi-btn-border: 2px solid var(--color-primary);
+
+  /* Progress bar hatching */
+  --mochi-progress-height: 20px;
+  --mochi-progress-fill: var(--color-secondary);
+}
+
+/* ─── Dark Mode + Mochi ───────────────────────────────── */
+.dark[data-theme="mochi"],
+.dark [data-theme="mochi"] {
+  --color-paper: #111212;
+  --color-surface: #181919;
+  --color-surface-container-low: #181919;
+  --color-surface-container: #202121;
+  --color-surface-container-high: #2a2b2b;
+  --color-surface-container-highest: #343636;
+  --color-surface-container-lowest: #101111;
+
+  --mochi-card-bg: var(--color-surface-container);
+  --mochi-card-shadow: 2px 2px 0px 0px rgba(0, 0, 0, 0.3);
+  --mochi-task-shadow: 2px 2px 0px 0px rgba(0, 0, 0, 0.2);
+}
+
+/* ─── Component Overrides ─────────────────────────────── */
+
+/* Mochi Card — The quest mascot card */
+[data-theme="mochi"] .mochi-card {
+  background: var(--mochi-card-bg);
+  border-radius: var(--mochi-card-radius);
+  border: var(--mochi-card-border);
+  box-shadow: var(--mochi-card-shadow);
+  min-height: var(--mochi-card-height);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-6);
+  position: relative;
+}
+
+/* Illustration ring — dashed circle around Mochi */
+[data-theme="mochi"] .mochi-illustration-ring {
+  width: 192px;
+  height: 192px;
+  border-radius: var(--rounded-full);
+  background: var(--color-surface-container-high);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+  margin-bottom: var(--space-6);
+}
+
+[data-theme="mochi"] .mochi-illustration-ring::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: var(--rounded-full);
+  border: 1px dashed var(--color-primary);
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+/* Task items — rounded, with sketch shadow */
+[data-theme="mochi"] .mochi-task-item {
+  border-radius: var(--mochi-task-radius);
+  box-shadow: var(--mochi-task-shadow);
+  border: 1px solid var(--color-primary);
+  transition: all var(--duration-normal) var(--ease-sketch);
+}
+
+[data-theme="mochi"] .mochi-task-item:hover {
+  background: var(--color-surface-container-low);
+}
+
+/* Add task button — bold, sketch-thick */
+[data-theme="mochi"] .mochi-add-btn {
+  border-radius: var(--mochi-btn-radius);
+  border: var(--mochi-btn-border);
+  padding: var(--space-3) var(--space-6);
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/* Sketch checkbox — Mochi style with × mark */
+[data-theme="mochi"] .mochi-checkbox {
+  appearance: none;
+  width: 24px;
+  height: 24px;
+  border: 1px solid var(--color-outline);
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background-color var(--duration-fast) var(--ease-sketch);
+}
+
+[data-theme="mochi"] .mochi-checkbox:checked {
+  background-color: var(--color-surface-container);
+}
+
+[data-theme="mochi"] .mochi-checkbox:checked::after {
+  content: '×';
+  font-size: 20px;
+  color: var(--color-primary);
+  font-family: monospace;
+  line-height: 1;
+}
+
+/* Progress bar with hatching */
+[data-theme="mochi"] .mochi-progress-track {
+  height: var(--mochi-progress-height);
+  border-radius: var(--rounded-full);
+  border: 1px solid var(--color-primary);
+  box-shadow: var(--mochi-card-shadow);
+  overflow: hidden;
+  position: relative;
+  background: var(--color-surface-container-highest);
+}
+
+[data-theme="mochi"] .mochi-progress-fill {
+  height: 100%;
+  background: repeating-linear-gradient(
+    45deg,
+    transparent,
+    transparent 4px,
+    var(--color-secondary-container) 4px,
+    var(--color-secondary-container) 5px
+  );
+  display: flex;
+  align-items: center;
+  padding-left: var(--space-2);
+}
+
+/* Timer card */
+[data-theme="mochi"] .mochi-timer {
+  border: 1px solid var(--color-primary);
+  border-radius: var(--rounded-xl);
+  box-shadow: var(--mochi-card-shadow);
+  padding: var(--space-4);
+  background: var(--color-surface-container-lowest);
+}

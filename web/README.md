@@ -1,36 +1,61 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# GrindOS Web
 
-## Getting Started
+GrindOS Web is the frontend application for GrindOS, built with **Next.js (App Router)** and TypeScript. It follows a modular, **Feature-Driven Architecture** to ensure scalable and maintainable code.
 
-First, run the development server:
+## 🚀 Getting Started
+
+First, install the dependencies:
+
+```bash
+npm install
+# or yarn install / pnpm install / bun install
+```
+
+Then, run the development server:
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+# or yarn dev / pnpm dev / bun dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## 🏗️ Architecture
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+The application is structured around a **Feature-Driven Architecture**. Instead of grouping files by type (e.g., all components in one folder, all hooks in another), code is grouped by **business feature**.
 
-## Learn More
+### Directory Structure
 
-To learn more about Next.js, take a look at the following resources:
+```text
+web/
+├── app/          # Next.js App Router (Pages, Layouts, Routing)
+├── features/     # Feature-based modules (Core business logic)
+│   ├── auth/         # Authentication and authorization
+│   ├── daily-plan/   # Daily task planning and management
+│   ├── mochi-rescue/ # Gamified feature (Mochi Rescue)
+│   ├── onboarding/   # User onboarding flow
+│   ├── profile/      # User profile and settings
+│   ├── stats/        # Statistics and tracking
+│   ├── shell/        # Application shell (Sidebar, Header, Layouts)
+│   ├── admin/        # Admin dashboard features
+│   └── user/         # User data management
+├── components/   # Shared global UI components (Buttons, Inputs, etc.)
+├── hooks/        # Shared global React hooks
+├── lib/          # Utility functions and core libraries
+├── styles/       # Global CSS and design tokens
+└── types/        # Shared TypeScript definitions
+```
+
+### Design Principles
+
+1. **Separation of Concerns**: 
+   - **Pages** (`app/`) handle routing and rendering.
+   - **Features** (`features/`) encapsulate state, logic, and UI for specific business domains.
+2. **Colocation**: Everything related to a feature lives inside its feature folder (components, hooks, services).
+3. **Styling**: CSS Modules (`*.module.css`) combined with global design tokens (`styles/design-tokens.css`).
+4. **API Communication**: External data fetching is encapsulated inside the `services/` folder within each feature, keeping UI components decoupled from the backend.
+
+## 📚 Learn More
 
 - [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
 - [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.

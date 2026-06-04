@@ -1,0 +1,178 @@
+.sidebar {
+  --side-border: color-mix(in srgb, var(--color-outline-variant) 44%, transparent);
+  --side-muted: color-mix(in srgb, var(--color-on-surface-variant) 78%, transparent);
+  --side-panel: color-mix(in srgb, var(--color-surface-container-low) 72%, white);
+
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  padding: var(--space-6);
+  background: var(--side-panel);
+}
+
+.headerRow {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.headerInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.goalLabel {
+  margin: 0;
+  color: var(--side-muted);
+  font-size: 13px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.streak {
+  margin: 0;
+  color: var(--color-on-surface);
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: 0;
+  line-height: 1.18;
+  overflow-wrap: anywhere;
+}
+
+.settingsButton,
+.timerBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  border-radius: var(--rounded-full);
+  color: var(--side-muted);
+}
+
+.settingsButton {
+  width: 34px;
+  height: 34px;
+}
+
+.settingsButton span {
+  font-size: 20px;
+}
+
+.settingsButton:hover,
+.timerBtn:hover {
+  background: color-mix(in srgb, var(--color-surface-container-high) 64%, white);
+  color: var(--color-on-surface);
+}
+
+.settingsButton:focus-visible,
+.timerBtn:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--accent) 48%, transparent);
+  outline-offset: 2px;
+}
+
+.timer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border: 1px solid var(--side-border);
+  border-radius: var(--rounded-md);
+  background: color-mix(in srgb, var(--color-surface-container-lowest) 86%, transparent);
+}
+
+.timerLeft {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  gap: var(--space-3);
+}
+
+.timerLeft span:first-child {
+  color: var(--side-muted);
+  font-size: 24px;
+}
+
+.timerText {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.timerDisplay {
+  color: var(--color-on-surface);
+  font-size: 25px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  letter-spacing: 0;
+  line-height: 1;
+}
+
+.timerTask {
+  overflow: hidden;
+  max-width: 180px;
+  color: var(--side-muted);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.timerBtn {
+  width: 38px;
+  height: 38px;
+  background: var(--color-graphite);
+  color: var(--color-on-primary);
+}
+
+.timerBtn:hover {
+  background: color-mix(in srgb, var(--color-graphite) 88%, white);
+  color: var(--color-on-primary);
+}
+
+.timerBtn span {
+  font-size: 24px;
+}
+
+.spacer {
+  flex: 1;
+  min-height: var(--space-2);
+}
+
+.footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--side-border);
+}
+
+.footerText {
+  color: var(--side-muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+@media (min-width: 769px) {
+  .sidebar {
+    position: sticky;
+    top: 0;
+    width: 320px;
+    height: 100vh;
+    flex-shrink: 0;
+    overflow-y: auto;
+    border-right: 1px solid var(--side-border);
+  }
+}
+
+@media (max-width: 768px) {
+  .sidebar {
+    width: 100%;
+    padding: var(--space-4) var(--space-margin-page);
+  }
+}

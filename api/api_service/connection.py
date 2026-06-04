@@ -19,6 +19,16 @@ def get_db() -> sqlite3.Connection:
 
 def init_db() -> None:
     conn = get_db()
+    
+    # Đảm bảo bảng users tồn tại trước khi alter
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS users (
+            id       INTEGER PRIMARY KEY AUTOINCREMENT,
+            username VARCHAR(255) NOT NULL,
+            timezone VARCHAR(100) NOT NULL
+        );
+    """)
+    
     user_cols = [r[1] for r in conn.execute("PRAGMA table_info(users)").fetchall()]
     if "password_hash" not in user_cols:
         conn.execute("ALTER TABLE users ADD COLUMN password_hash TEXT")

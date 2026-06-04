@@ -1,0 +1,44 @@
+/* ============================================================
+   UI EFFECTS - Clean sketchbook utilities
+   ============================================================ */
+
+.paper-texture {
+  background-color: var(--color-paper);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)' opacity='0.025'/%3E%3C/svg%3E");
+}
+
+.sketch-border {
+  border: var(--sketch-border-width) solid var(--sketch-border-color);
+  border-radius: var(--sketch-border-radius);
+  filter: url("#sketchy");
+}
+
+.soft-panel {
+  border: 1px solid var(--color-outline-variant);
+  border-radius: var(--rounded);
+  background: var(--color-surface-container-lowest);
+}
+
+.hover-highlight {
+  transition: all var(--duration-normal) var(--ease-sketch);
+}
+
+.hover-highlight:hover {
+  background-color: var(--accent);
+  border-color: var(--color-graphite);
+}
+
+.sketch-border-thick {
+  border: 2px solid var(--color-primary);
+  border-radius: var(--rounded-xl);
+}
+
+.hatching-bg {
+  background: repeating-linear-gradient(
+    45deg,
+    transparent,
+    transparent 4px,
+    var(--color-secondary-container) 4px,
+    var(--color-secondary-container) 5px
+  );
+}
