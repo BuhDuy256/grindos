@@ -2,6 +2,7 @@ import { getMongoDb } from "@/lib/mongodb";
 import { nextSequence } from "@/modules/shared/sequence.mongo.repository";
 import type {
   CreateUserInput,
+  PatchAiContextInput,
   UpsertAiContextInput,
   UserRepository,
 } from "./repository";
@@ -81,6 +82,23 @@ export class UserMongoRepository implements UserRepository {
     return (await aiContextsCollection()).findOne({ userId });
   }
 
+  async createInternal(username: string, timezone: string) {
+    const now = new Date();
+    const user: UserDocument = {
+      id: await nextSequence("users"),
+      username,
+      timezone,
+      passwordHash: null,
+      isAdmin: false,
+      schemaVersion: 1,
+      createdAt: now,
+      updatedAt: now,
+      deletedAt: null,
+    };
+    await (await usersCollection()).insertOne(user);
+    return user;
+  }
+
   async upsertAiContext(userId: number, input: UpsertAiContextInput) {
     const now = new Date();
     const update = {
@@ -109,6 +127,20 @@ export class UserMongoRepository implements UserRepository {
     }
 
     return context;
+  }
+
+  async patchAiContext(userId: number, input: PatchAiContextInput) {
+    const update: Record<string, unknown> = { updatedAt: new Date() };
+    if (input.mainGoal !== undefined) update.mainGoal = input.mainGoal;
+    if (input.userPersonaSummary !== undefined) update.userPersonaSummary = input.userPersonaSummary;
+    if (input.metadata !== undefined) update.metadata = input.metadata;
+    if (input.bridgeChoices !== undefined) update.bridgeChoices = input.bridgeChoices;
+
+    const result = await (await aiContextsCollection()).updateOne(
+      { userId },
+      { $set: update },
+    );
+    return result.matchedCount > 0;
   }
 }
 

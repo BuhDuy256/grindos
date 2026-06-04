@@ -1,5 +1,5 @@
 import { getMongoDb } from "@/lib/mongodb";
-import type { PlayerStatsRepository, TaskCompletionStatDelta } from "./repository";
+import type { PlayerStatsRepository, TaskCompletionStatDelta, UpdateStatsInput } from "./repository";
 import type { PlayerStatsDocument } from "./type";
 
 const COLLECTION = "player_stats";
@@ -76,6 +76,19 @@ export class PlayerStatsMongoRepository implements PlayerStatsRepository {
     );
 
     return result;
+  }
+
+  async updateStats(userId: number, input: UpdateStatsInput) {
+    const set: Record<string, unknown> = { updatedAt: new Date() };
+    if (input.level !== undefined) set.level = input.level;
+    if (input.exp !== undefined) set.exp = input.exp;
+    if (input.strStat !== undefined) set.strStat = input.strStat;
+    if (input.intStat !== undefined) set.intStat = input.intStat;
+    if (input.vitStat !== undefined) set.vitStat = input.vitStat;
+    if (input.streak !== undefined) set.streak = input.streak;
+    if (input.difficultyMultiplier !== undefined) set.difficultyMultiplier = input.difficultyMultiplier;
+    const result = await (await collection()).updateOne({ userId }, { $set: set });
+    return result.matchedCount > 0;
   }
 
   async resetForUser(userId: number) {

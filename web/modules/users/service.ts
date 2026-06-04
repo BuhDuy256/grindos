@@ -58,6 +58,43 @@ export async function ensureUserExists(userId: number) {
   return user;
 }
 
+export async function registerInternal(username: string, timezone: string) {
+  const user = await userRepository.createInternal(username, timezone);
+  await createDefaultPlayerStats(user.id);
+  return { user_id: user.id };
+}
+
+export async function getAiContext(userId: number) {
+  const ctx = await userRepository.findAiContext(userId);
+  if (!ctx) return null;
+  return {
+    main_goal: ctx.mainGoal,
+    user_persona_summary: ctx.userPersonaSummary ?? null,
+    metadata: ctx.metadata,
+    bridge_choices: ctx.bridgeChoices ?? null,
+  };
+}
+
+export async function createAiContext(userId: number, mainGoal: string, metadata: Record<string, unknown>) {
+  const existing = await userRepository.findAiContext(userId);
+  if (existing) throw new ApiError(409, "Context already exists");
+  await userRepository.upsertAiContext(userId, { mainGoal, metadata });
+  return { ok: true };
+}
+
+export async function patchAiContext(userId: number, fields: {
+  main_goal?: string; user_persona_summary?: string | null;
+  metadata?: Record<string, unknown>; bridge_choices?: unknown[] | null;
+}) {
+  await userRepository.patchAiContext(userId, {
+    mainGoal: fields.main_goal,
+    userPersonaSummary: fields.user_persona_summary,
+    metadata: fields.metadata,
+    bridgeChoices: fields.bridge_choices,
+  });
+  return { ok: true };
+}
+
 export async function saveOnboardingContext(
   userId: number,
   mainGoal: string,

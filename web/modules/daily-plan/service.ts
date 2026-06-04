@@ -120,3 +120,105 @@ export async function getEcrHistory(userId: number, days: number) {
 export async function resetUserPlans(userId: number) {
   await dailyPlanRepository.resetUserPlans(userId);
 }
+
+// ── AI Core admin operations ──────────────────────────────────────────────────
+
+export async function createPlanWithTasks(
+  userId: number, date: string, systemMessage: string, progressAnalysis: string,
+  tasks: { title: string; description: string | null; duration_mins: number; parent_id: number | null; origin_type: string; modification_state: string }[],
+) {
+  const planId = await dailyPlanRepository.createPlanWithTasks(
+    userId, date, systemMessage, progressAnalysis,
+    tasks.map((t) => ({
+      title: t.title,
+      description: t.description,
+      durationMins: t.duration_mins,
+      parentId: t.parent_id,
+      originType: t.origin_type,
+      modificationState: t.modification_state,
+    })),
+  );
+  return { plan_id: planId };
+}
+
+export async function updatePlan(planId: number, fields: {
+  ecr_score?: number | null; user_note?: string | null;
+  learning_summary?: string | null; ai_insight?: string | null;
+}) {
+  await dailyPlanRepository.updatePlan(planId, {
+    ecrScore: fields.ecr_score,
+    userNote: fields.user_note,
+    learningSummary: fields.learning_summary,
+    aiInsight: fields.ai_insight,
+  });
+  return { ok: true };
+}
+
+export async function getLastNPlans(userId: number, limit: number) {
+  const plans = await dailyPlanRepository.getLastNPlans(userId, limit);
+  return plans.map((p) => ({
+    id: p.id,
+    date: p.date,
+    ecr_score: p.ecrScore,
+    user_note: p.userNote,
+    learning_summary: p.learningSummary ?? null,
+  }));
+}
+
+export async function getPlanTasksFlat(planId: number) {
+  const tasks = await dailyPlanRepository.findAllTasksByPlanId(planId);
+  return tasks.map((t) => ({
+    id: t.id,
+    parent_id: t.parentId,
+    title: t.title,
+    description: t.description,
+    duration_mins: t.durationMins,
+    is_completed: t.isCompleted,
+    origin_type: t.originType,
+    modification_state: t.modificationState,
+  }));
+}
+
+export async function getPlanTasksTree(planId: number) {
+  const flat = await getPlanTasksFlat(planId);
+  const map = new Map<number, typeof flat[0] & { subtasks?: unknown[]; depth: number }>();
+  flat.forEach((t) => map.set(t.id, { ...t, depth: 0, subtasks: [] }));
+  const roots: (typeof flat[0] & { depth: number })[] = [];
+  map.forEach((node) => {
+    if (node.parent_id === null) {
+      roots.push(node);
+    } else {
+      const parent = map.get(node.parent_id);
+      if (parent) {
+        node.depth = parent.depth + 1;
+        (parent.subtasks as unknown[]).push(node);
+      }
+    }
+  });
+  return roots;
+}
+
+export async function updateTaskModification(taskId: number, state: string, durationMins?: number) {
+  await dailyPlanRepository.updateTaskModification(taskId, state, durationMins);
+  return { ok: true };
+}
+
+export async function markTasksCompleted(taskIds: number[]) {
+  await dailyPlanRepository.markTasksCompleted(taskIds);
+  return { ok: true };
+}
+
+export async function getAdminDailyPlan(userId: number, date: string) {
+  const plan = await dailyPlanRepository.findPlanByUserAndDate(userId, date);
+  if (!plan) return null;
+  return {
+    id: plan.id,
+    date: plan.date,
+    system_message: plan.systemMessage,
+    progress_analysis: plan.progressAnalysis,
+    ecr_score: plan.ecrScore,
+    user_note: plan.userNote,
+    learning_summary: plan.learningSummary ?? null,
+    ai_insight: plan.aiInsight ?? null,
+  };
+}

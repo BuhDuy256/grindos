@@ -1,9 +1,11 @@
 import { getMongoDb } from "@/lib/mongodb";
 import { nextSequence } from "@/modules/shared/sequence.mongo.repository";
 import type {
-  DailyPlanRepository,
+  AiTaskInput,
   CreatePlanInput,
   CreateTaskInput,
+  DailyPlanRepository,
+  UpdatePlanInput,
   UpdateTaskInput,
 } from "./repository";
 import type { DailyPlanDocument, TaskDocument } from "./type";
@@ -91,6 +93,59 @@ export class DailyPlanMongoRepository implements DailyPlanRepository {
     return plan;
   }
 
+  async createPlanWithTasks(
+    userId: number, date: string, systemMessage: string, progressAnalysis: string,
+    tasks: AiTaskInput[],
+  ) {
+    const now = new Date();
+    const planId = await nextSequence("daily_plans");
+    const plan: DailyPlanDocument = {
+      id: planId, userId, date,
+      progressAnalysis, systemMessage,
+      ecrScore: null, userNote: null, learningSummary: null, aiInsight: null,
+      schemaVersion: 1, createdAt: now, updatedAt: now, deletedAt: null,
+    };
+    await (await plansCollection()).insertOne(plan);
+
+    if (tasks.length > 0) {
+      const taskDocs: TaskDocument[] = await Promise.all(
+        tasks.map(async (t) => ({
+          id: await nextSequence("tasks"),
+          dailyPlanId: planId,
+          parentId: t.parentId,
+          title: t.title,
+          description: t.description,
+          durationMins: t.durationMins,
+          isCompleted: false,
+          originType: t.originType as "SYSTEM_GENERATED" | "USER_CREATED",
+          modificationState: t.modificationState as "UNCHANGED" | "EDITED" | "DELETED",
+          schemaVersion: 1 as const,
+          createdAt: now,
+          updatedAt: now,
+          deletedAt: null,
+        })),
+      );
+      await (await tasksCollection()).insertMany(taskDocs);
+    }
+    return planId;
+  }
+
+  async updatePlan(planId: number, input: UpdatePlanInput) {
+    const $set: Record<string, unknown> = { updatedAt: new Date() };
+    if (input.ecrScore !== undefined) $set.ecrScore = input.ecrScore;
+    if (input.userNote !== undefined) $set.userNote = input.userNote;
+    if (input.learningSummary !== undefined) $set.learningSummary = input.learningSummary;
+    if (input.aiInsight !== undefined) $set.aiInsight = input.aiInsight;
+    const result = await (await plansCollection()).updateOne({ id: planId }, { $set });
+    return result.matchedCount > 0;
+  }
+
+  async getLastNPlans(userId: number, n: number) {
+    return (await plansCollection())
+      .find({ userId, deletedAt: null }, { sort: { date: -1 }, limit: n })
+      .toArray();
+  }
+
   async findTasksByPlanId(planId: number) {
     return (await tasksCollection())
       .find(visibleTaskFilter({ dailyPlanId: planId }), { sort: { id: 1 } })
@@ -136,6 +191,30 @@ export class DailyPlanMongoRepository implements DailyPlanRepository {
       { $set: { isCompleted: nextState, updatedAt: new Date() } },
     );
     return nextState;
+  }
+
+  async findAllTasksByPlanId(planId: number) {
+    return (await tasksCollection())
+      .find({ dailyPlanId: planId, deletedAt: null }, { sort: { id: 1 } })
+      .toArray();
+  }
+
+  async updateTaskModification(taskId: number, state: string, durationMins?: number) {
+    const $set: Record<string, unknown> = {
+      modificationState: state,
+      updatedAt: new Date(),
+    };
+    if (durationMins !== undefined) $set.durationMins = durationMins;
+    const result = await (await tasksCollection()).updateOne({ id: taskId }, { $set });
+    return result.matchedCount > 0;
+  }
+
+  async markTasksCompleted(taskIds: number[]) {
+    if (!taskIds.length) return;
+    await (await tasksCollection()).updateMany(
+      { id: { $in: taskIds } },
+      { $set: { isCompleted: true, updatedAt: new Date() } },
+    );
   }
 
   async updateTask(taskId: number, input: UpdateTaskInput) {

@@ -1,6 +1,5 @@
+"""Gemini client setup. SQLite removed — data access goes through web_client.py."""
 import os
-import sqlite3
-from pathlib import Path
 from typing import Any, Optional
 
 from dotenv import load_dotenv
@@ -9,92 +8,10 @@ from google.genai import types
 
 load_dotenv()
 
-_default_db = Path(__file__).resolve().parent.parent.parent.parent / "db" / "grindos.db"
-DB_PATH = Path(os.getenv("DATABASE_URL", str(_default_db)))
-
 _gemini_primary: Optional[genai.Client] = None
 _gemini_backup: Optional[genai.Client] = None
 
 _RATE_LIMIT_SIGNALS = ("429", "503", "RESOURCE_EXHAUSTED", "UNAVAILABLE", "quota")
-
-
-def get_db() -> sqlite3.Connection:
-    conn = sqlite3.connect(str(DB_PATH), check_same_thread=False)
-    conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA foreign_keys = ON")
-    return conn
-
-
-def init_db() -> None:
-    conn = get_db()
-    conn.executescript("""
-        CREATE TABLE IF NOT EXISTS users (
-            id       INTEGER PRIMARY KEY AUTOINCREMENT,
-            username VARCHAR(255) NOT NULL,
-            timezone VARCHAR(100) NOT NULL
-        );
-
-        CREATE TABLE IF NOT EXISTS player_stats (
-            user_id              INTEGER PRIMARY KEY,
-            level                INTEGER NOT NULL DEFAULT 1,
-            exp                  INTEGER NOT NULL DEFAULT 0,
-            str_stat             INTEGER NOT NULL DEFAULT 10,
-            int_stat             INTEGER NOT NULL DEFAULT 10,
-            vit_stat             INTEGER NOT NULL DEFAULT 10,
-            streak               INTEGER NOT NULL DEFAULT 0,
-            difficulty_multiplier REAL    NOT NULL DEFAULT 1.00,
-            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-        );
-
-        CREATE TABLE IF NOT EXISTS ai_contexts (
-            user_id              INTEGER PRIMARY KEY,
-            main_goal            TEXT    NOT NULL,
-            user_persona_summary TEXT,
-            metadata             TEXT    NOT NULL DEFAULT '{}',
-            bridge_choices       TEXT,
-            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-        );
-
-        CREATE TABLE IF NOT EXISTS daily_plans (
-            id               INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id          INTEGER NOT NULL,
-            date             TEXT    NOT NULL,
-            progress_analysis TEXT,
-            system_message   TEXT,
-            ecr_score        INTEGER,
-            user_note        TEXT,
-            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-        );
-
-        CREATE TABLE IF NOT EXISTS tasks (
-            id                 INTEGER PRIMARY KEY AUTOINCREMENT,
-            daily_plan_id      INTEGER      NOT NULL,
-            parent_id          INTEGER,
-            title              VARCHAR(500) NOT NULL,
-            duration_mins      INTEGER      NOT NULL,
-            is_completed       INTEGER      NOT NULL DEFAULT 0,
-            origin_type        VARCHAR(50)  NOT NULL,
-            modification_state VARCHAR(50)  NOT NULL DEFAULT 'UNCHANGED',
-            FOREIGN KEY (daily_plan_id) REFERENCES daily_plans(id) ON DELETE CASCADE,
-            FOREIGN KEY (parent_id)     REFERENCES tasks(id)       ON DELETE CASCADE
-        );
-
-        CREATE INDEX IF NOT EXISTS idx_daily_plans_user_date ON daily_plans(user_id, date);
-        CREATE INDEX IF NOT EXISTS idx_tasks_plan_parent     ON tasks(daily_plan_id, parent_id);
-    """)
-    # Non-destructive migrations
-    task_cols = [r[1] for r in conn.execute("PRAGMA table_info(tasks)").fetchall()]
-    if "description" not in task_cols:
-        conn.execute("ALTER TABLE tasks ADD COLUMN description TEXT")
-
-    plan_cols = [r[1] for r in conn.execute("PRAGMA table_info(daily_plans)").fetchall()]
-    if "learning_summary" not in plan_cols:
-        conn.execute("ALTER TABLE daily_plans ADD COLUMN learning_summary TEXT")
-    if "ai_insight" not in plan_cols:
-        conn.execute("ALTER TABLE daily_plans ADD COLUMN ai_insight TEXT")
-
-    conn.commit()
-    conn.close()
 
 
 def init_gemini() -> None:
@@ -110,7 +27,6 @@ def init_gemini() -> None:
 
 
 def get_gemini_client() -> genai.Client:
-    """Return primary client (for callers that manage their own retry logic)."""
     if _gemini_primary is None:
         raise RuntimeError("Gemini client not initialized. Call init_gemini() at startup.")
     return _gemini_primary
@@ -121,11 +37,7 @@ def call_gemini(
     config: types.GenerateContentConfig,
     model_name: str | None = None,
 ) -> Any:
-    """
-    Call Gemini with automatic failover to backup key on rate-limit errors.
-    Tries primary first; if a 429/503/RESOURCE_EXHAUSTED is raised, retries
-    once with the backup key (GEMINI_API_BACKUP).
-    """
+    """Call Gemini with automatic failover to backup key on rate-limit errors."""
     model = model_name or os.getenv("GEMINI_MODEL", "gemini-2.5-flash-lite")
     clients = [c for c in [_gemini_primary, _gemini_backup] if c is not None]
 
@@ -144,7 +56,7 @@ def call_gemini(
             err = str(exc)
             if any(sig in err for sig in _RATE_LIMIT_SIGNALS):
                 last_exc = exc
-                continue          # try next key
-            raise                 # non-rate-limit error — propagate immediately
+                continue
+            raise
 
-    raise last_exc  # both keys exhausted
+    raise last_exc  # type: ignore[misc]
