@@ -89,6 +89,21 @@ def login(body: LoginBody):
     )
 
 
+@auth_router.post("/register-internal")
+def register_internal(body: RegisterBody):
+    """Create user without password — for AI Core use only."""
+    conn = get_db()
+    cursor = conn.execute(
+        "INSERT INTO users (username, timezone) VALUES (?, ?)",
+        (body.username.strip(), "Asia/Ho_Chi_Minh"),
+    )
+    user_id = cursor.lastrowid
+    conn.execute("INSERT OR IGNORE INTO player_stats (user_id) VALUES (?)", (user_id,))
+    conn.commit()
+    conn.close()
+    return {"user_id": user_id}
+
+
 @auth_router.get("/me", response_model=AuthOut)
 def me(authorization: Optional[str] = Header(None)):
     if not authorization or not authorization.startswith("Bearer "):

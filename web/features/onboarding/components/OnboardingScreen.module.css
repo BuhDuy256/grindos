@@ -1,0 +1,402 @@
+.page {
+  min-height: 100vh;
+  min-height: 100dvh;
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background-color: var(--color-paper);
+  background-image: radial-gradient(var(--color-surface-container-highest) 1px, transparent 0);
+  background-size: 24px 24px;
+}
+
+/* ─── Header ──────────────────────────────── */
+.header {
+  width: 100%;
+  padding: clamp(0.75rem, 2dvh, 1.25rem) var(--space-margin-page) clamp(0.5rem, 1.4dvh, 1rem);
+  flex: 0 0 auto;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  gap: clamp(0.35rem, 1dvh, 0.5rem);
+  background: var(--color-paper);
+}
+
+.headerTop {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.headerTitle {
+  font-size: clamp(1.5rem, 4vw, var(--font-size-headline-md));
+  font-weight: 700;
+  color: var(--color-primary);
+  line-height: 1.05;
+}
+
+.headerStep {
+  font-size: clamp(0.75rem, 2vw, var(--font-size-label-caps));
+  color: var(--color-on-surface-variant);
+  margin-left: var(--space-4);
+  font-weight: 700;
+  letter-spacing: var(--letter-spacing-label-caps);
+}
+
+.progressTrack {
+  width: 100%;
+  height: 4px;
+  background: var(--color-outline-variant);
+  position: relative;
+  overflow: hidden;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.progressFill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 100%;
+  background: repeating-linear-gradient(45deg,
+      var(--color-primary),
+      var(--color-primary) 2px,
+      transparent 2px,
+      transparent 4px);
+  transition: width var(--duration-normal) var(--ease-sketch);
+}
+
+/* ─── Main Container ──────────────────────── */
+.mainContainer {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: clamp(0.75rem, 2.4dvh, 2rem) var(--space-margin-page);
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  width: 100%;
+  scrollbar-gutter: stable;
+}
+
+.hero {
+  margin-bottom: clamp(0.85rem, 2.6dvh, var(--space-6));
+  text-align: center;
+}
+
+.mochiWrapper {
+  display: flex;
+  justify-content: center;
+  margin-bottom: clamp(0.6rem, 1.8dvh, var(--space-4));
+}
+
+.mochiPeek {
+  width: clamp(72px, 13dvh, 112px);
+  height: clamp(72px, 13dvh, 112px);
+  filter: contrast(1.2);
+  transition: transform 0.3s ease;
+}
+
+.mochiPeek:hover,
+.mochiPeekActive {
+  transform: translateY(-8px) rotate(5deg) scale(1.1);
+}
+
+.mochiImage {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.title {
+  font-size: clamp(1.55rem, 4.8vw, var(--font-size-headline-md));
+  font-weight: 700;
+  color: var(--color-primary);
+  line-height: 1.08;
+  margin-bottom: clamp(0.35rem, 1.2dvh, var(--space-2));
+}
+
+.subtitle {
+  font-size: clamp(0.95rem, 2.4vw, var(--font-size-body-sm));
+  color: var(--color-secondary);
+  margin: 0 auto;
+  max-width: 48rem;
+}
+
+/* ─── Interaction Area ────────────────────── */
+.interactionArea {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: clamp(0.75rem, 2dvh, var(--space-4));
+}
+
+.contentBox {
+  display: flex;
+  flex-direction: column;
+  gap: clamp(0.65rem, 1.8dvh, var(--space-3));
+  width: 100%;
+  max-width: min(100%, 448px);
+  margin: 0 auto;
+}
+
+.pencilBorder {
+  border: 2px solid var(--color-primary);
+  box-shadow: 2px 2px 0px var(--color-surface-container-highest);
+  position: relative;
+  background: var(--color-surface-container-lowest);
+  border-radius: var(--rounded-lg);
+}
+
+.pencilBorder::after {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border: 1px solid var(--color-primary);
+  opacity: 0.2;
+  pointer-events: none;
+  border-radius: inherit;
+  transform: rotate(0.1deg);
+}
+
+.highlighterHover {
+  transition: background-color 0.2s ease, color 0.2s ease;
+  color: var(--color-primary);
+}
+
+.highlighterHover:hover,
+.optionActive {
+  background-color: var(--color-primary) !important;
+  color: var(--color-on-primary) !important;
+}
+
+.highlighterHover:hover .optionIcon,
+.optionActive .optionIcon {
+  color: var(--color-on-primary);
+}
+
+.highlighterHover:hover .nextBtnText {
+  color: var(--color-on-primary);
+}
+
+.optionBtn {
+  min-height: clamp(44px, 6.5dvh, 56px);
+  padding: clamp(0.55rem, 1.6dvh, var(--space-3)) clamp(0.9rem, 3vw, var(--space-4));
+  text-align: left;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+}
+
+.optionText {
+  font-size: clamp(0.95rem, 2.6vw, var(--font-size-body-base));
+  font-weight: 600;
+  color: inherit;
+  line-height: 1.2;
+  min-width: 0;
+}
+
+.optionIcon {
+  opacity: 0;
+  transition: opacity 0.2s, color 0.2s;
+  color: inherit;
+}
+
+.optionBtn:hover .optionIcon,
+.optionActive .optionIcon {
+  opacity: 1;
+}
+
+.divider {
+  font-size: clamp(0.75rem, 2vw, var(--font-size-label-caps));
+  color: var(--color-on-surface-variant);
+  margin-bottom: clamp(0.35rem, 1dvh, var(--space-2));
+  padding: 0 var(--space-1);
+  text-transform: uppercase;
+  font-weight: 700;
+}
+
+.textareaWrapper {
+  width: 100%;
+  position: relative;
+  padding: clamp(0.75rem, 2dvh, var(--space-3));
+}
+
+.textarea {
+  width: 100%;
+  min-height: 0;
+  height: clamp(72px, 13dvh, 120px);
+  background: transparent;
+  border: none;
+  outline: none;
+  font-size: clamp(0.95rem, 2.5vw, var(--font-size-body-base));
+  color: inherit;
+  resize: none;
+}
+
+.textarea::placeholder {
+  color: var(--color-outline-variant);
+}
+
+.textareaDeco {
+  position: absolute;
+  bottom: var(--space-2);
+  right: var(--space-2);
+  width: 40px;
+  height: 40px;
+  opacity: 0.1;
+  pointer-events: none;
+  background: repeating-linear-gradient(-45deg, var(--color-primary), var(--color-primary) 1px, transparent 1px, transparent 5px);
+}
+
+/* ─── Footer ──────────────────────────────── */
+.footer {
+  width: 100%;
+  padding: clamp(0.75rem, 2dvh, 1.5rem) var(--space-margin-page) max(clamp(0.75rem, 2dvh, 1.5rem), env(safe-area-inset-bottom));
+  flex: 0 0 auto;
+  background: linear-gradient(to top, var(--color-paper), color-mix(in srgb, var(--color-paper) 88%, transparent));
+  z-index: 40;
+}
+
+.footerInner {
+  max-width: 800px;
+  margin: 0 auto;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.nextBtn {
+  min-height: 44px;
+  max-width: 100%;
+  padding: clamp(0.65rem, 1.6dvh, var(--space-3)) clamp(1.15rem, 5vw, var(--space-8));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  cursor: pointer;
+  min-width: 0;
+}
+
+.nextBtn:active {
+  transform: scale(0.95);
+}
+
+.nextBtnText {
+  font-size: clamp(0.72rem, 2vw, var(--font-size-label-caps));
+  color: var(--color-primary);
+  font-weight: 700;
+  letter-spacing: var(--letter-spacing-label-caps);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.backBtn {
+  min-height: 44px;
+  padding: clamp(0.65rem, 1.6dvh, var(--space-3)) clamp(0.5rem, 3vw, var(--space-5));
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  cursor: pointer;
+  background: transparent;
+  border: none;
+  color: var(--color-primary);
+  font-weight: 600;
+  flex: 0 0 auto;
+}
+
+.backBtn:hover {
+  text-decoration: underline;
+}
+
+/* ─── Other states ────────────────────────── */
+.error {
+  color: var(--color-error);
+  text-align: center;
+  font-weight: 600;
+}
+
+.loading {
+  min-height: min(240px, 50dvh);
+  display: grid;
+  place-items: center;
+  color: var(--color-on-surface-variant);
+  font-weight: 600;
+}
+
+@media (max-height: 720px) {
+  .header {
+    padding-top: 0.5rem;
+    padding-bottom: 0.4rem;
+  }
+
+  .mainContainer {
+    justify-content: flex-start;
+    padding-top: 0.6rem;
+    padding-bottom: 0.6rem;
+  }
+
+  .hero {
+    margin-bottom: 0.65rem;
+  }
+
+  .mochiWrapper {
+    margin-bottom: 0.5rem;
+  }
+
+  .mochiPeek {
+    width: 72px;
+    height: 72px;
+  }
+
+  .title {
+    font-size: 1.45rem;
+  }
+
+  .subtitle {
+    font-size: 0.9rem;
+  }
+
+  .contentBox {
+    gap: 0.55rem;
+  }
+
+  .textarea {
+    height: 64px;
+  }
+
+  .footer {
+    padding-top: 0.5rem;
+    padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
+  }
+
+  .nextBtn,
+  .backBtn {
+    min-height: 40px;
+  }
+}
+
+@media (max-width: 480px) {
+  .headerTop,
+  .footerInner {
+    max-width: none;
+  }
+
+  .headerStep {
+    margin-left: var(--space-2);
+    white-space: nowrap;
+  }
+
+  .subtitle {
+    max-width: 28rem;
+  }
+}

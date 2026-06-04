@@ -100,11 +100,33 @@ Invoked when the user triggers the "End Day" submission action on the Frontend i
 
 ---
 
-### 2.4. Character Profile RPG Stats
+### 2.4. Task Completion Profile Update
+Invoked whenever the user marks a daily mission task as completed or incomplete.
+
+* **Endpoint:** `PATCH /v1/daily-plan/task/{task_id}/complete`
+* **Description:** Toggles task completion state and immediately applies a deterministic RPG profile delta in the Web Backend. Completing a task increases profile progression; reverting a task applies the inverse delta with floor guards so repeated toggling cannot inflate stats.
+* **Profile Side Effects:**
+    * `exp` changes by task duration weight.
+    * `str_stat` changes by task execution credit.
+    * `int_stat` changes for deeper focus blocks.
+    * `vit_stat` changes for sustained focus blocks.
+    * `difficulty_multiplier` changes in small bounded increments.
+    * `level` is recalculated from total `exp`.
+    * `streak` remains a day-level metric and is not changed by a single task toggle.
+* **Outbound Response:**
+    ```json
+    {
+      "is_completed": true
+    }
+    ```
+
+---
+
+### 2.5. Character Profile RPG Stats
 Populates the user's character profile sheet, level badge, and stat dashboard attributes.
 
 * **Endpoint:** `GET /v1/player/profile`
-* **Description:** Extracts active tracked RPG values (`STR`, `INT`, `VIT`, `Streak`, `Multiplier`) mapped to the targeted tenant.
+* **Description:** Extracts active tracked RPG values (`Level`, `EXP`, `STR`, `INT`, `VIT`, `Streak`, `Multiplier`) mapped to the targeted tenant.
 * **Query Parameters:** `?user_id=string-uuid-12345`
 * **Outbound Response:**
     ```json
@@ -121,10 +143,33 @@ Populates the user's character profile sheet, level badge, and stat dashboard at
       }
     }
     ```
+* **Gateway Compatibility Note:** The Web Backend may also expose the stat fields at the top level of the response for legacy UI clients, while preserving the canonical `stats` object.
 
 ---
 
-### 2.5. Retrieve Campaign Bridge Choice Options (Day 30 Exclusive)
+### 2.6. Retrieve Player ECR History / Arc Story Logs
+Populates the profile Arc Story panel and calendar activity widgets.
+
+* **Endpoint:** `GET /v1/player/ecr-history`
+* **Description:** Retrieves recent evaluated day records. `learning_summary` and `ai_insight` are markdown-capable strings rendered by the profile UI inside a collapsible scroll frame.
+* **Query Parameters:** `?user_id=string-uuid-12345&days=365`
+* **Outbound Response:**
+    ```json
+    {
+      "history": [
+        {
+          "date": "2026-05-21",
+          "ecr_score": 88,
+          "learning_summary": "## Mission Result\n- Completed API CRUD baseline\n- Needs stronger DB drills",
+          "ai_insight": "**Arc signal:** Backend foundations are stabilizing."
+        }
+      ]
+    }
+    ```
+
+---
+
+### 2.7. Retrieve Campaign Bridge Choice Options (Day 30 Exclusive)
 Populates the interactive choice menu interface when a user finishes a 4-week narrative arc block.
 
 * **Endpoint:** `GET /v1/campaign/bridge-options`
@@ -152,7 +197,7 @@ Populates the interactive choice menu interface when a user finishes a 4-week na
 
 ---
 
-### 2.6. Commit Selected Campaign Bridge Choice
+### 2.8. Commit Selected Campaign Bridge Choice
 Executes and locks the chosen narrative option to instantiate the next operational map tier.
 
 * **Endpoint:** `POST /v1/campaign/select-bridge`

@@ -1,28 +1,35 @@
 @echo off
-title GrindOS
-echo.
-echo  ██████╗ ██████╗ ██╗███╗   ██╗██████╗  ██████╗ ███████╗
-echo  ██╔════╝ ██╔══██╗██║████╗  ██║██╔══██╗██╔═══██╗██╔════╝
-echo  ██║  ███╗██████╔╝██║██╔██╗ ██║██║  ██║██║   ██║███████╗
-echo  ██║   ██║██╔══██╗██║██║╚██╗██║██║  ██║██║   ██║╚════██║
-echo  ╚██████╔╝██║  ██║██║██║ ╚████║██████╔╝╚██████╔╝███████║
-echo   ╚═════╝ ╚═╝  ╚═╝╚═╝╚═╝  ╚═══╝╚═════╝  ╚═════╝ ╚══════╝
-echo.
-echo  Starting 3 services...
+echo =========================================
+echo  GrindOS - Starting Services
+echo =========================================
 echo.
 
-start "GrindOS - AI Core  [port 8000]" cmd /k "cd /d %~dp0ai && uvicorn main:app --reload --port 8000"
+:: Auto-copy .env files if missing
+if not exist "ai\.env" (
+    if exist "ai\.env-example" copy "ai\.env-example" "ai\.env" >nul
+    echo [!] ai\.env created — add your GEMINI_API key before using AI features
+)
+if not exist "api\.env" (
+    if exist "api\.env.example" copy "api\.env.example" "api\.env" >nul
+)
+
+:: ── Production (MongoDB) ────────────────────────────────────────────────────
+echo [1] AI Core        (port 8000)  - Gemini pipelines
+echo [2] Frontend       (port 3000)  - MongoDB UI  (web/)
+echo.
+echo [DEV] SQLite API   (port 8080)  - api/
+echo [DEV] SQLite UI    (port 3001)  - api/ui/
+echo.
+
+start "GrindOS - AI Core (8000)" cmd /k "cd /d %~dp0ai && (if not exist venv python -m venv venv) && call venv\Scripts\activate && pip install -r requirements.txt -q && uvicorn main:app --port 8000 --reload"
 timeout /t 1 /nobreak >nul
 
-start "GrindOS - Web API  [port 8080]" cmd /k "cd /d %~dp0api && uvicorn main:app --reload --port 8080"
-timeout /t 1 /nobreak >nul
+start "GrindOS - Frontend (3000)" cmd /k "cd /d %~dp0web && npm run dev"
 
-start "GrindOS - Frontend [port 3000]" cmd /k "cd /d %~dp0web && npm run dev"
-
-echo  AI Core   ->  http://localhost:8000/docs
-echo  Web API   ->  http://localhost:8080/docs
-echo  Frontend  ->  http://localhost:3000
 echo.
-echo  Opening browser in 4 seconds... (Ctrl+C to skip)
-timeout /t 4 /nobreak >nul
+echo Services starting. Opening browser in 5 seconds...
+echo.
+echo To run SQLite dev environment instead:
+echo   start-dev.bat
+timeout /t 5 /nobreak >nul
 start http://localhost:3000

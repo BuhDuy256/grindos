@@ -1,61 +1,130 @@
 @import "tailwindcss";
+@import "../styles/design-tokens.css";
+@import "../styles/sketch-effects.css";
+@import "../styles/themes/mochi.css";
 
-/* Class-based dark mode — inline script in layout sets .dark on <html> before hydration */
 @variant dark (&:where(.dark, .dark *));
 
-/* When user explicitly chose light, block system dark-mode media query from leaking in */
-@media (prefers-color-scheme: dark) {
-  html:not(.dark) {
-    color-scheme: light;
-  }
-}
-
-/* ── Ochre minimal palette ─────────────────────────────────── */
 :root {
-  --bg:        #FFFBF2;
-  --fg:        #1C1810;
-  --accent:    #D4830A;
-  --border:    #EDE0C8;
-  --muted:     #8B7355;
-  --surface:   #F5EDD8;
-  --font-size-base: 15px;
-}
-
-html {
-  font-size: var(--font-size-base);
+  --bg: var(--color-paper);
+  --fg: var(--color-on-surface);
+  --accent: var(--color-accent-amber);
+  --font-size-base: var(--font-size-body-base);
+  --letter-spacing-display-lg: 0;
 }
 
 .dark {
-  --bg:      #0F0D0A;
-  --fg:      #F0EBE3;
-  --border:  #2A2318;
-  --muted:   #7A6B55;
-  --surface: #1A1610;
+  color-scheme: dark;
+  --color-surface: #181919;
+  --color-surface-dim: #101111;
+  --color-surface-bright: #242525;
+  --color-surface-container-lowest: #101111;
+  --color-surface-container-low: #181919;
+  --color-surface-container: #202121;
+  --color-surface-container-high: #2a2b2b;
+  --color-surface-container-highest: #343636;
+  --color-on-surface: #f4f0ef;
+  --color-on-surface-variant: #c8c6c6;
+  --color-inverse-surface: #f4f0ef;
+  --color-inverse-on-surface: #313030;
+  --color-outline: #a9abab;
+  --color-outline-variant: #454747;
+  --color-primary: #f4f0ef;
+  --color-on-primary: #181919;
+  --color-primary-container: #e5e2e1;
+  --color-on-primary-container: #313030;
+  --color-inverse-primary: #444748;
+  --color-secondary: #c8c6c6;
+  --color-on-secondary: #181919;
+  --color-secondary-container: #313030;
+  --color-on-secondary-container: #e5e2e1;
+  --color-tertiary: #f4f0ef;
+  --color-on-tertiary: #181919;
+  --color-tertiary-container: #343636;
+  --color-on-tertiary-container: #e5e2e1;
+  --color-error: #ffb4ab;
+  --color-on-error: #690005;
+  --color-error-container: #93000a;
+  --color-on-error-container: #ffdad6;
+  --color-graphite: #f4f0ef;
+  --color-soft-gray: #5d5e5f;
+  --color-paper: #111212;
+  --color-accent-mint: #a8e6cf;
+  --color-accent-amber: #f8d66d;
+  --color-pencil-shading: #2a2b2b;
+  --sketch-border-color: var(--color-outline-variant);
 }
 
 @theme inline {
-  --color-background: var(--bg);
-  --color-foreground: var(--fg);
-  --color-accent:     var(--accent);
-  --color-border:     var(--border);
-  --color-muted:      var(--muted);
-  --color-surface:    var(--surface);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-background: var(--color-paper);
+  --color-foreground: var(--color-on-surface);
+  --color-accent: var(--accent);
+  --color-border: var(--color-outline-variant);
+  --color-muted: var(--color-on-surface-variant);
+  --color-surface: var(--color-surface-container-low);
+  --font-sans: var(--font-inter), var(--font-family-primary);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  min-height: 100%;
+  font-size: var(--font-size-base);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 body {
-  background: var(--bg);
-  color: var(--fg);
-  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+  min-height: 100vh;
+  margin: 0;
+  color: var(--color-on-surface);
+  background-color: var(--color-paper);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)' opacity='0.025'/%3E%3C/svg%3E");
+  font-family: var(--font-inter), var(--font-family-primary);
+  font-size: var(--font-size-body-base);
+  font-weight: var(--font-weight-body-base);
+  line-height: var(--line-height-body-base);
 }
 
-button, [role="button"], a, label[for], select {
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button {
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+}
+
+input,
+textarea,
+select {
+  color: inherit;
+  font: inherit;
+}
+
+button,
+[role="button"],
+a,
+label[for],
+select {
   cursor: pointer;
 }
 
-button:not(:disabled), [role="button"]:not([aria-disabled="true"]) {
-  transition: opacity 120ms ease, background-color 120ms ease, color 120ms ease, border-color 120ms ease;
+button:not(:disabled),
+[role="button"]:not([aria-disabled="true"]) {
+  transition:
+    opacity var(--duration-fast) var(--ease-sketch),
+    background-color var(--duration-fast) var(--ease-sketch),
+    color var(--duration-fast) var(--ease-sketch),
+    border-color var(--duration-fast) var(--ease-sketch),
+    transform var(--duration-fast) var(--ease-sketch);
 }
 
 button:not(:disabled):active {
@@ -65,4 +134,35 @@ button:not(:disabled):active {
 
 button:disabled {
   cursor: not-allowed;
+  opacity: 0.55;
+}
+
+img {
+  display: block;
+  max-width: 100%;
+}
+
+.page-container {
+  width: min(100%, 960px);
+  min-height: 100vh;
+  margin: 0 auto;
+  padding: var(--space-margin-page);
+}
+
+.flex-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
 }
