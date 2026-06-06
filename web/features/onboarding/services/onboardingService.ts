@@ -6,7 +6,7 @@ export function forgeOnboarding(input: {
   mainGoal: string;
   userContext: string;
 }) {
-  return apiClient.post<OnboardResult>("/admin/onboarding/forge", {
+  return apiClient.post<OnboardResult>("/v1/onboarding/forge", {
     user_id: input.userId,
     main_goal: input.mainGoal,
     user_context: input.userContext,

@@ -54,7 +54,7 @@ export function TaskRow({
   const [toggling, setToggling] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [addingSubtask, setAddingSubtask] = useState(false);
-  const isPending = task.id.startsWith("temp-");
+  const isPending = String(task.id).startsWith("temp-");
   const mountedRef = useRef(true);
   const rowClassName = [
     styles.row,

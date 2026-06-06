@@ -208,6 +208,12 @@ export async function markTasksCompleted(taskIds: number[]) {
   return { ok: true };
 }
 
+export async function addAiTasksToPlan(planId: number, tasks: Parameters<typeof dailyPlanRepository.createPlanWithTasks>[4]) {
+  if (!tasks || tasks.length === 0) return { ok: true, count: 0 };
+  await dailyPlanRepository.addTasksToPlan(planId, tasks);
+  return { ok: true, count: tasks.length };
+}
+
 export async function getAdminDailyPlan(userId: number, date: string) {
   const plan = await dailyPlanRepository.findPlanByUserAndDate(userId, date);
   if (!plan) return null;

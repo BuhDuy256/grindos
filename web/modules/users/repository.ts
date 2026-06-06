@@ -29,4 +29,5 @@ export interface UserRepository {
   findAiContext(userId: number): Promise<AiContextDocument | null>;
   upsertAiContext(userId: number, input: UpsertAiContextInput): Promise<AiContextDocument>;
   patchAiContext(userId: number, input: PatchAiContextInput): Promise<boolean>;
+  deleteAiContext(userId: number): Promise<boolean>;
 }

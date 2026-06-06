@@ -3,10 +3,12 @@ import { apiErrorResponse, readJson } from "@/lib/api-error";
 import { parseApiId } from "@/lib/id";
 import { proxyAiCore } from "@/lib/ai-core-proxy";
 import { onboardSchema } from "@/modules/users/schema";
-import { saveOnboardingContext } from "@/modules/users/service";
 
 export const runtime = "nodejs";
 
+// User-facing forge endpoint — does not require admin.
+// Called once during onboarding after /auth/register.
+// AI Core handles context creation (including arc_start_date) — no double-write here.
 export async function POST(request: Request) {
   try {
     const body = onboardSchema.parse(await readJson(request));
@@ -15,9 +17,6 @@ export async function POST(request: Request) {
       ...body,
       user_id: userId,
     });
-
-    // AI Core already saves the full context (with arc_start_date) via web_client.
-    // Do NOT call saveOnboardingContext here — it would overwrite with incomplete data.
     return NextResponse.json(result);
   } catch (error) {
     return apiErrorResponse(error);

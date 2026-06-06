@@ -17,6 +17,7 @@ export function mapTaskToDTO(task: TaskDocument): TaskDTO {
     duration_mins: task.durationMins,
     is_completed: task.isCompleted,
     modification_state: task.modificationState,
+    origin_type: task.originType,
   };
 }
 

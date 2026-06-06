@@ -4,7 +4,7 @@ import { parseApiId } from "@/lib/id";
 import { proxyAiCore } from "@/lib/ai-core-proxy";
 import { resetPlayerStats } from "@/modules/player-stats/service";
 import { resetUserPlans } from "@/modules/daily-plan/service";
-import { ensureUserExists } from "@/modules/users/service";
+import { ensureUserExists, deleteAiContext } from "@/modules/users/service";
 
 export const runtime = "nodejs";
 
@@ -20,6 +20,8 @@ export async function DELETE(
     await Promise.all([
       resetUserPlans(userId),
       resetPlayerStats(userId),
+      // Delete ai_context so user can re-onboard from scratch
+      deleteAiContext(userId).catch(() => null),
       proxyAiCore("DELETE", `/dev/user/${userId}/reset`).catch(() => null),
     ]);
 

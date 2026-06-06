@@ -41,6 +41,7 @@ export interface DailyPlanRepository {
     userId: number, date: string, systemMessage: string, progressAnalysis: string,
     tasks: AiTaskInput[],
   ): Promise<number>;
+  addTasksToPlan(planId: number, tasks: AiTaskInput[]): Promise<void>;
   updatePlan(planId: number, input: UpdatePlanInput): Promise<boolean>;
   getLastNPlans(userId: number, n: number): Promise<DailyPlanDocument[]>;
   findTasksByPlanId(planId: number): Promise<TaskDocument[]>;

@@ -46,6 +46,7 @@ export interface TaskDTO {
   duration_mins: number;
   is_completed: boolean;
   modification_state: ModificationState;
+  origin_type: OriginType;
 }
 
 export interface DailyPlanDTO {

@@ -30,6 +30,7 @@ export function AdminScreen() {
   const admin = useAdminDashboard();
   const completedCount = admin.plan?.tasks.filter((task) => task.is_completed).length ?? 0;
   const totalCount = admin.plan?.tasks.length ?? 0;
+  const hasAiTasks = admin.plan?.tasks.some((t) => t.origin_type === "SYSTEM_GENERATED") ?? false;
   const learningDone = admin.plan?.ecr_score !== null && admin.plan?.ecr_score !== undefined;
 
   return (
@@ -98,8 +99,8 @@ export function AdminScreen() {
       <section className={styles.panel}>
         <h2 className={styles.panelTitle}>Actions</h2>
         <div className={styles.actions}>
-          <button className={styles.button} disabled={Boolean(admin.plan)} onClick={admin.executeThinking}>
-            {admin.plan ? "Thinking already run" : "Run Thinking"}
+          <button className={styles.button} disabled={hasAiTasks} onClick={admin.executeThinking}>
+            {hasAiTasks ? "Thinking already run" : "Run Thinking"}
           </button>
           <button className={styles.button} disabled={!admin.plan || learningDone} onClick={admin.executeLearning}>
             {!admin.plan ? "Run Learning needs a plan" : learningDone ? "Learning already run" : "Run Learning"}

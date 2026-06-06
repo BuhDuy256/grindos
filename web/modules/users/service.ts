@@ -58,6 +58,11 @@ export async function ensureUserExists(userId: number) {
   return user;
 }
 
+export async function deleteAiContext(userId: number) {
+  await userRepository.deleteAiContext(userId);
+  return { ok: true };
+}
+
 export async function registerInternal(username: string, timezone: string) {
   const user = await userRepository.createInternal(username, timezone);
   await createDefaultPlayerStats(user.id);

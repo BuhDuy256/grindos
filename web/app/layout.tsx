@@ -35,6 +35,17 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <ThemeProvider />
           {children}
           <BottomNav />
+          {process.env.NODE_ENV === "development" && (
+            <div style={{
+              position: "fixed", bottom: "4.5rem", right: "0.75rem",
+              fontSize: "10px", fontFamily: "monospace", opacity: 0.6,
+              background: process.env.NEXT_PUBLIC_API_URL ? "#1e40af" : "#065f46",
+              color: "#fff", padding: "2px 6px", borderRadius: "4px",
+              zIndex: 9999, pointerEvents: "none",
+            }}>
+              {process.env.NEXT_PUBLIC_API_URL ? "SQLite :8080" : "MongoDB"}
+            </div>
+          )}
         </Providers>
       </body>
     </html>

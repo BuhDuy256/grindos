@@ -129,6 +129,11 @@ export class UserMongoRepository implements UserRepository {
     return context;
   }
 
+  async deleteAiContext(userId: number) {
+    const result = await (await aiContextsCollection()).deleteOne({ userId });
+    return result.deletedCount > 0;
+  }
+
   async patchAiContext(userId: number, input: PatchAiContextInput) {
     const update: Record<string, unknown> = { updatedAt: new Date() };
     if (input.mainGoal !== undefined) update.mainGoal = input.mainGoal;

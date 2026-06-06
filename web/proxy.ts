@@ -136,7 +136,7 @@ function isPublicApiPath(pathname: string) {
 
 function isAdminOnlyPath(pathname: string) {
   if (pathname === "/admin") return true;
-  if (pathname === "/admin/onboarding/forge") return false;
+  if (pathname === "/v1/onboarding/forge") return false; // user-facing, no admin needed
   return pathname.startsWith("/admin/");
 }
 
@@ -149,8 +149,19 @@ function authenticatedHome(request: NextRequest) {
   return isOnboarded ? DEFAULT_AUTHENTICATED_PATH : "/onboarding";
 }
 
+function isAiCoreRequest(request: NextRequest): boolean {
+  const apiKey = request.headers.get("x-api-key");
+  const expected = process.env.AI_CORE_SECRET ?? "dev-secret";
+  return !!apiKey && apiKey === expected;
+}
+
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
+
+  // AI Core internal calls bypass JWT auth — authenticated via X-Api-Key header
+  if (isAiCoreRequest(request)) {
+    return NextResponse.next();
+  }
 
   if (isPublicApiPath(pathname)) {
     return NextResponse.next();

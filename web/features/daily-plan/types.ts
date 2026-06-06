@@ -7,6 +7,7 @@ export interface Task {
   duration_mins: number;
   is_completed: boolean;
   modification_state: string;
+  origin_type: "SYSTEM_GENERATED" | "USER_CREATED";
   subtasks?: Task[];
   focus_time_seconds?: number;
 }
