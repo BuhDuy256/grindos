@@ -171,6 +171,8 @@ Ngày 30 là **Judgment Day** — kết thúc Arc I, mở Arc II.
 | `/daily-plan` | User hằng ngày | Xem + tick + edit tasks |
 | `/admin` | Dev / tester | Trigger pipelines, xem stats, advance days |
 
+> **`/admin` không phải "admin role":** Đây là dev tooling, **không có auth**. Các API route tương ứng (`/admin/*`) hiện unprotected hoàn toàn — xem danh sách đầy đủ và cảnh báo security tại [docs/architecture/database.md § Route Contract](../architecture/database.md).
+
 ---
 
 ## 9. User Journey Map — Toàn bộ vòng đời

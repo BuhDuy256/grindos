@@ -13,6 +13,7 @@ GrindOS now has two database paths during the Mongo migration:
 The active web backend is implemented in `web/app/api-like route handlers` using MongoDB native driver. The route contract still mirrors the old FastAPI paths:
 
 ```txt
+# User-facing (requires JWT auth)
 /auth/register
 /auth/login
 /auth/me
@@ -23,6 +24,8 @@ The active web backend is implemented in `web/app/api-like route handlers` using
 /v1/daily-plan/end-day
 /v1/player/profile
 /v1/player/ecr-history
+
+# Dev/tester tooling — xem docs/design/users-flow-design.md § Screens Summary
 /admin/users
 /admin/player/profile
 /admin/thinking/run
@@ -30,6 +33,8 @@ The active web backend is implemented in `web/app/api-like route handlers` using
 /admin/user/:userId/reset
 /admin/onboarding/forge
 ```
+
+> **Lưu ý `/admin`:** Các route này **không có auth/middleware** — đây là dev tooling để trigger AI pipeline và xem data thủ công, không phải "admin role" theo nghĩa production. Bất kỳ ai biết URL đều gọi được. Trước khi deploy production phải thêm bảo vệ (secret header hoặc IP whitelist).
 
 Admin pipeline triggers still proxy to `AI_CORE_URL`. Until AI Core is migrated to MongoDB, generated thinking/learning data must be synchronized into MongoDB or written by a Mongo-aware AI Core path before the web UI can read it.
 
