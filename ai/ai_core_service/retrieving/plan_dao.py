@@ -3,6 +3,14 @@ from typing import Optional
 from . import web_client as _c
 
 
+def ensure_plan(user_id: int, date: str) -> dict:
+    return _c.ensure_plan(user_id, date)
+
+
+def add_tasks_to_plan(plan_id, tasks: list[dict]) -> None:
+    _c.add_tasks_to_plan(plan_id, tasks)
+
+
 def get_daily_plan(user_id: int, date: str) -> Optional[dict]:
     return _c.get_daily_plan(user_id, date)
 

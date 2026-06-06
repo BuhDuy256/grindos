@@ -67,9 +67,16 @@ def run_thinking_for_user(user_id: int, target_date: str | None = None) -> None:
     model_name = os.getenv("GEMINI_MODEL", "gemini-2.5-flash-lite")
     today = target_date or date.today().isoformat()
 
-    if plan_dao.get_daily_plan(user_id, today):
+    # 1. Get or create plan — backend owns plan lifecycle
+    plan = plan_dao.ensure_plan(user_id, today)
+    plan_id = plan["id"]
+
+    # 2. Idempotency: skip if AI tasks already exist
+    existing_tasks = plan_dao.get_plan_tasks_flat(plan_id)
+    if any(t.get("origin_type") == "SYSTEM_GENERATED" for t in existing_tasks):
         return
 
+    # 3. Build context + call Gemini
     stats = user_dao.get_player_stats(user_id)
     ctx = user_dao.get_ai_context(user_id)
     if not stats or not ctx:
@@ -111,23 +118,18 @@ def run_thinking_for_user(user_id: int, target_date: str | None = None) -> None:
                         pass
 
     if plan_data:
-        tasks = [t.model_dump() for t in plan_data.tasks]
-        plan_dao.create_plan_with_tasks(
-            user_id=user_id,
-            date=today,
+        # 4. Update plan metadata (system_message, progress_analysis)
+        plan_dao.update_daily_plan(plan_id,
             system_message=plan_data.system_message,
-            progress_analysis=plan_data.progress_analysis,
-            tasks=tasks,
-        )
+            progress_analysis=plan_data.progress_analysis)
+        # 5. Add AI tasks to the plan
+        plan_dao.add_tasks_to_plan(plan_id, [t.model_dump() for t in plan_data.tasks])
     else:
-        system_message, progress_analysis, tasks = _build_fallback_plan(user_id, today)
-        plan_dao.create_plan_with_tasks(
-            user_id=user_id,
-            date=today,
+        system_message, progress_analysis, fallback_tasks = _build_fallback_plan(user_id, today)
+        plan_dao.update_daily_plan(plan_id,
             system_message=system_message,
-            progress_analysis=progress_analysis,
-            tasks=tasks,
-        )
+            progress_analysis=progress_analysis)
+        plan_dao.add_tasks_to_plan(plan_id, fallback_tasks)
 
 
 async def run_thinking_batch() -> dict:

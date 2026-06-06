@@ -81,6 +81,11 @@ class DailyPlanPatch(BaseModel):
     user_note: Optional[str] = None
     learning_summary: Optional[str] = None
     ai_insight: Optional[str] = None
+    system_message: Optional[str] = None
+    progress_analysis: Optional[str] = None
+
+class AddTasksBody(BaseModel):
+    tasks: list[TaskIn]
 
 class TaskPatch(BaseModel):
     modification_state: str
@@ -109,20 +114,18 @@ class OnboardBody(BaseModel):
 
 @admin_router.get("/users", response_model=list[UserOut])
 def list_users():
-    conn = get_db()
-    rows = conn.execute("SELECT id, username, timezone FROM users ORDER BY id").fetchall()
-    conn.close()
+    with get_db() as conn:
+        rows = conn.execute("SELECT id, username, timezone FROM users ORDER BY id").fetchall()
     return [UserOut(**dict(r)) for r in rows]
 
 
 @admin_router.get("/user/{user_id}", response_model=UserDetailOut)
 def get_user(user_id: int):
-    conn = get_db()
-    row = conn.execute(
-        "SELECT id, username, timezone, COALESCE(is_admin, 0) as is_admin FROM users WHERE id = ?",
-        (user_id,),
-    ).fetchone()
-    conn.close()
+    with get_db() as conn:
+        row = conn.execute(
+            "SELECT id, username, timezone, COALESCE(is_admin, 0) as is_admin FROM users WHERE id = ?",
+            (user_id,),
+        ).fetchone()
     if not row:
         raise HTTPException(status_code=404, detail="User not found")
     return UserDetailOut(**dict(row))
@@ -132,12 +135,11 @@ def get_user(user_id: int):
 
 @admin_router.get("/player/profile", response_model=PlayerStatsOut)
 def get_player_profile_legacy(user_id: int):
-    conn = get_db()
-    row = conn.execute(
-        "SELECT user_id, level, exp, str_stat, int_stat, vit_stat, streak, difficulty_multiplier "
-        "FROM player_stats WHERE user_id = ?", (user_id,),
-    ).fetchone()
-    conn.close()
+    with get_db() as conn:
+        row = conn.execute(
+            "SELECT user_id, level, exp, str_stat, int_stat, vit_stat, streak, difficulty_multiplier "
+            "FROM player_stats WHERE user_id = ?", (user_id,),
+        ).fetchone()
     if not row:
         raise HTTPException(status_code=404, detail="User not found")
     return PlayerStatsOut(**dict(row))
@@ -145,12 +147,11 @@ def get_player_profile_legacy(user_id: int):
 
 @admin_router.get("/user/{user_id}/stats", response_model=PlayerStatsOut)
 def get_user_stats(user_id: int):
-    conn = get_db()
-    row = conn.execute(
-        "SELECT user_id, level, exp, str_stat, int_stat, vit_stat, streak, difficulty_multiplier "
-        "FROM player_stats WHERE user_id = ?", (user_id,),
-    ).fetchone()
-    conn.close()
+    with get_db() as conn:
+        row = conn.execute(
+            "SELECT user_id, level, exp, str_stat, int_stat, vit_stat, streak, difficulty_multiplier "
+            "FROM player_stats WHERE user_id = ?", (user_id,),
+        ).fetchone()
     if not row:
         raise HTTPException(status_code=404, detail="Stats not found")
     return PlayerStatsOut(**dict(row))
@@ -162,13 +163,10 @@ def update_user_stats(user_id: int, body: PlayerStatsPatch):
     if not fields:
         return {"ok": True}
     set_clause = ", ".join(f"{k} = ?" for k in fields)
-    conn = get_db()
-    conn.execute(
-        f"UPDATE player_stats SET {set_clause} WHERE user_id = ?",
-        (*fields.values(), user_id),
-    )
-    conn.commit()
-    conn.close()
+    with get_db() as conn:
+        conn.execute(f"UPDATE player_stats SET {set_clause} WHERE user_id = ?",
+                     (*fields.values(), user_id))
+        conn.commit()
     return {"ok": True}
 
 
@@ -184,12 +182,11 @@ def _parse_context_row(row) -> AiContextOut:
 
 @admin_router.get("/user/{user_id}/context", response_model=AiContextOut)
 def get_user_context(user_id: int):
-    conn = get_db()
-    row = conn.execute(
-        "SELECT main_goal, user_persona_summary, metadata, bridge_choices "
-        "FROM ai_contexts WHERE user_id = ?", (user_id,),
-    ).fetchone()
-    conn.close()
+    with get_db() as conn:
+        row = conn.execute(
+            "SELECT main_goal, user_persona_summary, metadata, bridge_choices "
+            "FROM ai_contexts WHERE user_id = ?", (user_id,),
+        ).fetchone()
     if not row:
         raise HTTPException(status_code=404, detail="AI context not found")
     return _parse_context_row(row)
@@ -197,16 +194,15 @@ def get_user_context(user_id: int):
 
 @admin_router.post("/user/{user_id}/context")
 def create_user_context(user_id: int, body: AiContextCreate):
-    conn = get_db()
-    existing = conn.execute("SELECT 1 FROM ai_contexts WHERE user_id = ?", (user_id,)).fetchone()
-    if existing:
-        raise HTTPException(status_code=409, detail="Context already exists")
-    conn.execute(
-        "INSERT INTO ai_contexts (user_id, main_goal, metadata) VALUES (?, ?, ?)",
-        (user_id, body.main_goal, json.dumps(body.metadata)),
-    )
-    conn.commit()
-    conn.close()
+    with get_db() as conn:
+        existing = conn.execute("SELECT 1 FROM ai_contexts WHERE user_id = ?", (user_id,)).fetchone()
+        if existing:
+            raise HTTPException(status_code=409, detail="Context already exists")
+        conn.execute(
+            "INSERT INTO ai_contexts (user_id, main_goal, metadata) VALUES (?, ?, ?)",
+            (user_id, body.main_goal, json.dumps(body.metadata)),
+        )
+        conn.commit()
     return {"ok": True}
 
 
@@ -215,7 +211,6 @@ def update_user_context(user_id: int, body: AiContextPatch):
     fields = body.model_dump(exclude_unset=True)
     if not fields:
         return {"ok": True}
-    # Serialize JSON fields
     if "metadata" in fields and isinstance(fields["metadata"], dict):
         fields["metadata"] = json.dumps(fields["metadata"])
     if "bridge_choices" in fields:
@@ -224,13 +219,10 @@ def update_user_context(user_id: int, body: AiContextPatch):
     allowed = {"main_goal", "user_persona_summary", "metadata", "bridge_choices"}
     cols = {k: v for k, v in fields.items() if k in allowed}
     set_clause = ", ".join(f"{k} = ?" for k in cols)
-    conn = get_db()
-    conn.execute(
-        f"UPDATE ai_contexts SET {set_clause} WHERE user_id = ?",
-        (*cols.values(), user_id),
-    )
-    conn.commit()
-    conn.close()
+    with get_db() as conn:
+        conn.execute(f"UPDATE ai_contexts SET {set_clause} WHERE user_id = ?",
+                     (*cols.values(), user_id))
+        conn.commit()
     return {"ok": True}
 
 
@@ -238,13 +230,12 @@ def update_user_context(user_id: int, body: AiContextPatch):
 
 @admin_router.get("/daily-plan")
 def get_daily_plan(user_id: int, date: str):
-    conn = get_db()
-    row = conn.execute(
-        "SELECT id, date, system_message, progress_analysis, ecr_score, user_note, "
-        "learning_summary, ai_insight FROM daily_plans WHERE user_id = ? AND date = ?",
-        (user_id, date),
-    ).fetchone()
-    conn.close()
+    with get_db() as conn:
+        row = conn.execute(
+            "SELECT id, date, system_message, progress_analysis, ecr_score, user_note, "
+            "learning_summary, ai_insight FROM daily_plans WHERE user_id = ? AND date = ?",
+            (user_id, date),
+        ).fetchone()
     if not row:
         raise HTTPException(status_code=404, detail="Plan not found")
     return dict(row)
@@ -252,28 +243,32 @@ def get_daily_plan(user_id: int, date: str):
 
 @admin_router.post("/daily-plan/with-tasks")
 def create_plan_with_tasks(body: PlanWithTasksBody):
-    conn = get_db()
-    try:
-        cursor = conn.execute(
-            "INSERT INTO daily_plans (user_id, date, system_message, progress_analysis) VALUES (?, ?, ?, ?)",
-            (body.user_id, body.date, body.system_message, body.progress_analysis),
-        )
-        plan_id = cursor.lastrowid
+    with get_db() as conn:
+        # Reuse existing plan if present (AI Core handles idempotency)
+        existing = conn.execute(
+            "SELECT id FROM daily_plans WHERE user_id = ? AND date = ?",
+            (body.user_id, body.date),
+        ).fetchone()
+        if existing:
+            plan_id = existing["id"]
+            conn.execute(
+                "UPDATE daily_plans SET system_message = ?, progress_analysis = ? WHERE id = ?",
+                (body.system_message, body.progress_analysis, plan_id),
+            )
+        else:
+            cursor = conn.execute(
+                "INSERT INTO daily_plans (user_id, date, system_message, progress_analysis) VALUES (?, ?, ?, ?)",
+                (body.user_id, body.date, body.system_message, body.progress_analysis),
+            )
+            plan_id = cursor.lastrowid
         conn.executemany(
             "INSERT INTO tasks (daily_plan_id, parent_id, title, description, duration_mins, origin_type, modification_state) "
             "VALUES (?, ?, ?, ?, ?, ?, ?)",
-            [
-                (plan_id, t.parent_id, t.title, t.description, t.duration_mins, t.origin_type, t.modification_state)
-                for t in body.tasks
-            ],
+            [(plan_id, t.parent_id, t.title, t.description, t.duration_mins, t.origin_type, t.modification_state)
+             for t in body.tasks],
         )
         conn.commit()
-        return {"plan_id": plan_id}
-    except Exception:
-        conn.rollback()
-        raise
-    finally:
-        conn.close()
+    return {"plan_id": plan_id}
 
 
 @admin_router.patch("/daily-plan/{plan_id}")
@@ -281,70 +276,78 @@ def update_daily_plan(plan_id: int, body: DailyPlanPatch):
     fields = body.model_dump(exclude_none=True)
     if not fields:
         return {"ok": True}
-    allowed = {"ecr_score", "user_note", "learning_summary", "ai_insight"}
+    allowed = {"ecr_score", "user_note", "learning_summary", "ai_insight",
+               "system_message", "progress_analysis"}
     cols = {k: v for k, v in fields.items() if k in allowed}
     set_clause = ", ".join(f"{k} = ?" for k in cols)
-    conn = get_db()
-    conn.execute(f"UPDATE daily_plans SET {set_clause} WHERE id = ?", (*cols.values(), plan_id))
-    conn.commit()
-    conn.close()
+    with get_db() as conn:
+        conn.execute(f"UPDATE daily_plans SET {set_clause} WHERE id = ?", (*cols.values(), plan_id))
+        conn.commit()
     return {"ok": True}
 
 
 @admin_router.get("/user/{user_id}/daily-plans")
 def get_last_n_plans(user_id: int, limit: int = 30):
-    conn = get_db()
-    rows = conn.execute(
-        "SELECT id, date, ecr_score, user_note, learning_summary "
-        "FROM daily_plans WHERE user_id = ? ORDER BY date DESC LIMIT ?",
-        (user_id, limit),
-    ).fetchall()
-    conn.close()
+    with get_db() as conn:
+        rows = conn.execute(
+            "SELECT id, date, ecr_score, user_note, learning_summary "
+            "FROM daily_plans WHERE user_id = ? ORDER BY date DESC LIMIT ?",
+            (user_id, limit),
+        ).fetchall()
     return [dict(r) for r in rows]
 
 
 # ── Tasks ─────────────────────────────────────────────────────────────────────
 
+@admin_router.post("/daily-plan/{plan_id}/tasks")
+def add_tasks_to_plan(plan_id: int, body: AddTasksBody):
+    """Bulk add AI-generated tasks to an existing plan."""
+    with get_db() as conn:
+        conn.executemany(
+            "INSERT INTO tasks (daily_plan_id, parent_id, title, description, "
+            "duration_mins, origin_type, modification_state) VALUES (?,?,?,?,?,?,?)",
+            [(plan_id, t.parent_id, t.title, t.description,
+              t.duration_mins, t.origin_type, t.modification_state)
+             for t in body.tasks],
+        )
+        conn.commit()
+    return {"ok": True, "count": len(body.tasks)}
+
+
 @admin_router.get("/daily-plan/{plan_id}/tasks")
 def get_plan_tasks(plan_id: int, format: str = "flat"):
-    conn = get_db()
-    if format == "tree":
-        rows = conn.execute(
-            """
-            WITH RECURSIVE task_tree AS (
-                SELECT id, daily_plan_id, parent_id, title, description, duration_mins,
-                       is_completed, origin_type, modification_state, 0 AS depth
-                FROM tasks WHERE daily_plan_id = ? AND parent_id IS NULL
-                UNION ALL
-                SELECT t.id, t.daily_plan_id, t.parent_id, t.title, t.description, t.duration_mins,
-                       t.is_completed, t.origin_type, t.modification_state, tt.depth + 1
-                FROM tasks t INNER JOIN task_tree tt ON t.parent_id = tt.id
-            )
-            SELECT * FROM task_tree ORDER BY depth, id
-            """,
-            (plan_id,),
-        ).fetchall()
-    else:
-        rows = conn.execute("SELECT * FROM tasks WHERE daily_plan_id = ?", (plan_id,)).fetchall()
-    conn.close()
+    with get_db() as conn:
+        if format == "tree":
+            rows = conn.execute(
+                """
+                WITH RECURSIVE task_tree AS (
+                    SELECT id, daily_plan_id, parent_id, title, description, duration_mins,
+                           is_completed, origin_type, modification_state, 0 AS depth
+                    FROM tasks WHERE daily_plan_id = ? AND parent_id IS NULL
+                    UNION ALL
+                    SELECT t.id, t.daily_plan_id, t.parent_id, t.title, t.description, t.duration_mins,
+                           t.is_completed, t.origin_type, t.modification_state, tt.depth + 1
+                    FROM tasks t INNER JOIN task_tree tt ON t.parent_id = tt.id
+                )
+                SELECT * FROM task_tree ORDER BY depth, id
+                """,
+                (plan_id,),
+            ).fetchall()
+        else:
+            rows = conn.execute("SELECT * FROM tasks WHERE daily_plan_id = ?", (plan_id,)).fetchall()
     return [dict(r) for r in rows]
 
 
 @admin_router.patch("/task/{task_id}")
 def update_task(task_id: int, body: TaskPatch):
-    conn = get_db()
-    if body.duration_mins is not None:
-        conn.execute(
-            "UPDATE tasks SET modification_state = ?, duration_mins = ? WHERE id = ?",
-            (body.modification_state, body.duration_mins, task_id),
-        )
-    else:
-        conn.execute(
-            "UPDATE tasks SET modification_state = ? WHERE id = ?",
-            (body.modification_state, task_id),
-        )
-    conn.commit()
-    conn.close()
+    with get_db() as conn:
+        if body.duration_mins is not None:
+            conn.execute("UPDATE tasks SET modification_state = ?, duration_mins = ? WHERE id = ?",
+                         (body.modification_state, body.duration_mins, task_id))
+        else:
+            conn.execute("UPDATE tasks SET modification_state = ? WHERE id = ?",
+                         (body.modification_state, task_id))
+        conn.commit()
     return {"ok": True}
 
 
@@ -353,10 +356,9 @@ def mark_tasks_completed(body: MarkCompletedBody):
     if not body.task_ids:
         return {"ok": True}
     placeholders = ",".join("?" * len(body.task_ids))
-    conn = get_db()
-    conn.execute(f"UPDATE tasks SET is_completed = 1 WHERE id IN ({placeholders})", body.task_ids)
-    conn.commit()
-    conn.close()
+    with get_db() as conn:
+        conn.execute(f"UPDATE tasks SET is_completed = 1 WHERE id IN ({placeholders})", body.task_ids)
+        conn.commit()
     return {"ok": True}
 
 
@@ -364,15 +366,14 @@ def mark_tasks_completed(body: MarkCompletedBody):
 
 @admin_router.post("/auth/register-internal")
 def register_internal(body: RegisterInternalBody):
-    conn = get_db()
-    cursor = conn.execute(
-        "INSERT INTO users (username, timezone) VALUES (?, ?)",
-        (body.username.strip(), body.timezone),
-    )
-    user_id = cursor.lastrowid
-    conn.execute("INSERT OR IGNORE INTO player_stats (user_id) VALUES (?)", (user_id,))
-    conn.commit()
-    conn.close()
+    with get_db() as conn:
+        cursor = conn.execute(
+            "INSERT INTO users (username, timezone) VALUES (?, ?)",
+            (body.username.strip(), body.timezone),
+        )
+        user_id = cursor.lastrowid
+        conn.execute("INSERT OR IGNORE INTO player_stats (user_id) VALUES (?)", (user_id,))
+        conn.commit()
     return {"user_id": user_id}
 
 

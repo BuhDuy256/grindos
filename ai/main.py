@@ -6,13 +6,12 @@ from fastapi import FastAPI
 
 load_dotenv()
 
-from ai_core_service.retrieving.connection import init_db, init_gemini
+from ai_core_service.retrieving.connection import init_gemini
 from ai_core_service.routing.endpoints import router
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    init_db()
     init_gemini()
     yield
 

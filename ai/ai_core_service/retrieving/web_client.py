@@ -115,15 +115,28 @@ def update_ai_context(user_id: int, **fields) -> None:
 
 # ── plan_dao interface ────────────────────────────────────────────────────────
 
+def ensure_plan(user_id: int, date: str) -> dict:
+    """GET or CREATE plan for given user+date. Backend owns plan lifecycle."""
+    return _post("/v1/daily-plan", {"user_id": user_id, "date": date})
+
+
+def add_tasks_to_plan(plan_id, tasks: list[dict]) -> None:
+    """Bulk add AI-generated tasks to an existing plan."""
+    plan_id_int = int(plan_id) if isinstance(plan_id, str) else plan_id
+    _post(f"/admin/daily-plan/{plan_id_int}/tasks", {"tasks": tasks})
+
+
 def get_daily_plan(user_id: int, date: str) -> Optional[dict]:
     return _safe_get("/admin/daily-plan", {"user_id": user_id, "date": date})
 
 
-def update_daily_plan(plan_id: int, **fields) -> None:
-    allowed = {"ecr_score", "user_note", "learning_summary", "ai_insight", "progress_analysis", "system_message"}
+def update_daily_plan(plan_id, **fields) -> None:
+    plan_id_int = int(plan_id) if isinstance(plan_id, str) else plan_id
+    allowed = {"ecr_score", "user_note", "learning_summary", "ai_insight",
+               "system_message", "progress_analysis"}
     body = {k: v for k, v in fields.items() if k in allowed}
     if body:
-        _patch(f"/admin/daily-plan/{plan_id}", body)
+        _patch(f"/admin/daily-plan/{plan_id_int}", body)
 
 
 def create_plan_with_tasks(

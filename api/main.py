@@ -21,9 +21,10 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="GrindOS Web API", version="1.0", lifespan=lifespan)
 
+_cors = os.getenv("CORS_ORIGINS", "http://localhost:3000,http://localhost:3001").split(",")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=[o.strip() for o in _cors],
     allow_methods=["*"],
     allow_headers=["*"],
     allow_credentials=True,
