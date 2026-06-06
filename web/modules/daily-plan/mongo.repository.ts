@@ -20,8 +20,10 @@ async function ensureIndexes() {
     return;
   }
 
+  indexesReady = true; // set early so failures don't hammer on every request
+
   const db = await getMongoDb();
-  await Promise.all([
+  const results = await Promise.allSettled([
     db.collection<DailyPlanDocument>(DAILY_PLANS_COLLECTION).createIndex(
       { id: 1 },
       { unique: true },
@@ -41,7 +43,12 @@ async function ensureIndexes() {
       { dailyPlanId: 1, parentId: 1 },
     ),
   ]);
-  indexesReady = true;
+
+  for (const result of results) {
+    if (result.status === "rejected") {
+      console.warn("[ensureIndexes] Failed to create index:", result.reason?.message ?? result.reason);
+    }
+  }
 }
 
 async function plansCollection() {
@@ -73,24 +80,21 @@ export class DailyPlanMongoRepository implements DailyPlanRepository {
 
   async createPlan(input: CreatePlanInput) {
     const now = new Date();
-    const plan: DailyPlanDocument = {
-      id: await nextSequence("daily_plans"),
-      userId: input.userId,
-      date: input.date,
-      progressAnalysis: null,
-      systemMessage: null,
-      ecrScore: null,
-      userNote: null,
-      learningSummary: null,
-      aiInsight: null,
-      schemaVersion: 1,
-      createdAt: now,
-      updatedAt: now,
-      deletedAt: null,
-    };
-
-    await (await plansCollection()).insertOne(plan);
-    return plan;
+    const id = await nextSequence("daily_plans");
+    const col = await plansCollection();
+    const result = await col.findOneAndUpdate(
+      { userId: input.userId, date: input.date, deletedAt: null },
+      {
+        $setOnInsert: {
+          id, userId: input.userId, date: input.date,
+          progressAnalysis: null, systemMessage: null,
+          ecrScore: null, userNote: null, learningSummary: null, aiInsight: null,
+          schemaVersion: 1, createdAt: now, updatedAt: now, deletedAt: null,
+        },
+      },
+      { upsert: true, returnDocument: "after" },
+    );
+    return result!;
   }
 
   async createPlanWithTasks(
@@ -98,14 +102,21 @@ export class DailyPlanMongoRepository implements DailyPlanRepository {
     tasks: AiTaskInput[],
   ) {
     const now = new Date();
-    const planId = await nextSequence("daily_plans");
-    const plan: DailyPlanDocument = {
-      id: planId, userId, date,
-      progressAnalysis, systemMessage,
-      ecrScore: null, userNote: null, learningSummary: null, aiInsight: null,
-      schemaVersion: 1, createdAt: now, updatedAt: now, deletedAt: null,
-    };
-    await (await plansCollection()).insertOne(plan);
+
+    const id = await nextSequence("daily_plans");
+    const result = await (await plansCollection()).findOneAndUpdate(
+      { userId, date, deletedAt: null },
+      {
+        $set: { systemMessage, progressAnalysis, updatedAt: now },
+        $setOnInsert: {
+          id, userId, date,
+          ecrScore: null, userNote: null, learningSummary: null, aiInsight: null,
+          schemaVersion: 1, createdAt: now, deletedAt: null,
+        },
+      },
+      { upsert: true, returnDocument: "after" },
+    );
+    const planId = result!.id;
 
     if (tasks.length > 0) {
       const taskDocs: TaskDocument[] = await Promise.all(
@@ -191,6 +202,29 @@ export class DailyPlanMongoRepository implements DailyPlanRepository {
       { $set: { isCompleted: nextState, updatedAt: new Date() } },
     );
     return nextState;
+  }
+
+  async addTasksToPlan(planId: number, tasks: AiTaskInput[]) {
+    if (!tasks.length) return;
+    const now = new Date();
+    const taskDocs: TaskDocument[] = await Promise.all(
+      tasks.map(async (t) => ({
+        id: await nextSequence("tasks"),
+        dailyPlanId: planId,
+        parentId: t.parentId,
+        title: t.title,
+        description: t.description,
+        durationMins: t.durationMins,
+        isCompleted: false,
+        originType: t.originType as "SYSTEM_GENERATED" | "USER_CREATED",
+        modificationState: t.modificationState as "UNCHANGED" | "EDITED" | "DELETED",
+        schemaVersion: 1 as const,
+        createdAt: now,
+        updatedAt: now,
+        deletedAt: null,
+      })),
+    );
+    await (await tasksCollection()).insertMany(taskDocs);
   }
 
   async findAllTasksByPlanId(planId: number) {
